@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kebab Rizki - Manajemen Keuangan & Operasional Outlet</title>
+  <meta name="description" content="Aplikasi kasir, pencatatan omzet harian, pengeluaran bahan baku, absensi karyawan, dan generator slip gaji PDF untuk outlet Kebab Rizki.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- jsPDF & AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- SheetJS (xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Custom Clean Minimalist CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- ==========================================================================
+         SIDEBAR NAVIGATION (Clean Minimalist Grouped Layout)
+         ========================================================================== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-header">
+        <div class="brand-left">
+          <div class="brand-icon-box" id="brandEmoji">🌯</div>
+          <div class="brand-title-wrap">
+            <span class="brand-title" id="sidebarOutletName">Kebab Rizki</span>
+            <span class="brand-tag">Outlet Finance</span>
+          </div>
+        </div>
+        <button class="btn-icon btn-sm" id="sidebarCloseBtn" style="display: none;" aria-label="Tutup Menu">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="nav-menu-wrapper">
+        <!-- Group 1: Menu Utama -->
+        <div class="nav-group">
+          <span class="nav-group-title">Menu Utama</span>
+          <a class="nav-item active" data-tab="dashboard">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Dashboard</span>
+          </a>
+          <a class="nav-item" data-tab="pemasukan">
+            <i data-lucide="arrow-down-left"></i>
+            <span>Pemasukan</span>
+          </a>
+          <a class="nav-item" data-tab="pengeluaran">
+            <i data-lucide="arrow-up-right"></i>
+            <span>Pengeluaran</span>
+          </a>
+          <a class="nav-item" data-tab="karyawan">
+            <i data-lucide="users"></i>
+            <span>Karyawan</span>
+          </a>
+          <a class="nav-item" data-tab="kehadiran">
+            <i data-lucide="calendar-check-2"></i>
+            <span>Kehadiran</span>
+          </a>
+        </div>
+
+        <!-- Group 2: Dokumen & Laporan -->
+        <div class="nav-group">
+          <span class="nav-group-title">Dokumen & Laporan</span>
+          <a class="nav-item" data-tab="slip-gaji">
+            <i data-lucide="file-badge-2"></i>
+            <span>Slip Gaji (PDF)</span>
+          </a>
+          <a class="nav-item" data-tab="laporan">
+            <i data-lucide="file-spreadsheet"></i>
+            <span>Laporan (Excel)</span>
+          </a>
+        </div>
+
+        <!-- Group 3: Pengaturan -->
+        <div class="nav-group">
+          <span class="nav-group-title">Sistem</span>
+          <a class="nav-item" data-tab="settings">
+            <i data-lucide="database"></i>
+            <span>Backup & Profil</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Account Footer -->
+      <div class="sidebar-account">
+        <div class="account-avatar" id="accountAvatar">RP</div>
+        <div class="account-meta">
+          <span class="account-name" id="sidebarOwnerName">Rizki Pratama</span>
+          <span class="account-role">Owner Outlet</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==========================================================================
+         MAIN WRAPPER (Floating White Curved Container)
+         ========================================================================== -->
+    <div class="main-wrapper">
+      <!-- Top Navbar & Breadcrumbs -->
+      <header class="top-navbar">
+        <div class="navbar-left">
+          <div class="breadcrumb-trail">
+            <span id="breadcrumbOutlet">Kebab Rizki</span>
+            <i data-lucide="chevron-right"></i>
+            <span class="breadcrumb-active" id="breadcrumbCurrent">Dashboard</span>
+          </div>
+          <h1 class="page-title" id="pageTitle">Dashboard Ringkasan</h1>
+        </div>
+
+        <div class="navbar-right">
+          <!-- Pill Date & Quick Filter Bar (Reference Style) -->
+          <div class="pill-date-bar">
+            <span class="date-label-pill" id="currentDateDisplay">01 - 19 Agustus 2026</span>
+            <button class="filter-pill-btn active" id="pillFilterAll">
+              <i data-lucide="check" style="width: 12px; height: 12px;"></i> Semua
+            </button>
+            <button class="filter-pill-btn" onclick="App.switchTab('pemasukan')">Pemasukan</button>
+            <button class="filter-pill-btn" onclick="App.switchTab('pengeluaran')">Belanja</button>
+          </div>
+
+          <button class="mobile-toggle-btn" id="mobileToggleBtn" aria-label="Buka Menu">
+            <i data-lucide="menu"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Viewport Content Area -->
+      <main class="content-area">
+
+        <!-- ====================================================================
+             1. TAB DASHBOARD
+             ==================================================================== -->
+        <section class="tab-pane active" id="tab-dashboard">
+          <!-- KPI Stats Grid (Pastel Minimalist) -->
+          <div class="kpi-grid">
+            <div class="kpi-card kpi-mint">
+              <div class="kpi-info">
+                <span class="kpi-label">Omzet Bulan Ini</span>
+                <span class="kpi-value" id="kpiIncomeMonth">Rp 0</span>
+                <span class="kpi-sub positive" id="kpiIncomeToday">Hari Ini: Rp 0</span>
+              </div>
+              <div class="kpi-icon-box mint">
+                <i data-lucide="wallet"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-rose">
+              <div class="kpi-info">
+                <span class="kpi-label">Total Pengeluaran</span>
+                <span class="kpi-value" id="kpiExpenseMonth">Rp 0</span>
+                <span class="kpi-sub" id="kpiExpenseCount">0 Transaksi Belanja</span>
+              </div>
+              <div class="kpi-icon-box rose">
+                <i data-lucide="shopping-bag"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-purple">
+              <div class="kpi-info">
+                <span class="kpi-label">Estimasi Laba Bersih</span>
+                <span class="kpi-value" id="kpiNetProfit">Rp 0</span>
+                <span class="kpi-sub" id="kpiProfitMargin" style="color: var(--pastel-purple-text);">Margin: 0%</span>
+              </div>
+              <div class="kpi-icon-box purple">
+                <i data-lucide="trending-up"></i>
+              </div>
+            </div>
+
+            <div class="kpi-card kpi-sky">
+              <div class="kpi-info">
+                <span class="kpi-label">Porsi Kebab Terjual</span>
+                <span class="kpi-value" id="kpiTotalPorsi">0 Porsi</span>
+                <span class="kpi-sub" id="kpiAvgDailyPorsi">Rata-rata: 0 porsi/hari</span>
+              </div>
+              <div class="kpi-icon-box sky">
+                <i data-lucide="utensils"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Grid -->
+          <div class="dashboard-charts-grid">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i data-lucide="bar-chart-3" style="width: 17px; height: 17px; color: var(--text-main);"></i>
+                  <span>Tren Omzet Penjualan (7 Hari Terakhir)</span>
+                </div>
+                <span class="card-subtitle">Agustus 2026</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i data-lucide="pie-chart" style="width: 17px; height: 17px; color: var(--text-main);"></i>
+                  <span>Kategori Pengeluaran</span>
+                </div>
+                <span class="card-subtitle">Bulan Ini</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="categoryChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Action & Recent Activity -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i data-lucide="clock" style="width: 17px; height: 17px; color: var(--text-main);"></i>
+                <span>Transaksi Terakhir (Pemasukan & Pengeluaran)</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary btn-sm" onclick="App.openModal('modalIncome')">
+                  <i data-lucide="plus"></i> + Pemasukan
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="App.openModal('modalExpense')">
+                  <i data-lucide="plus"></i> + Pengeluaran
+                </button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table" id="dashboardRecentTable">
+                <thead>
+                  <tr>
+                    <th>Tipe</th>
+                    <th>Tanggal</th>
+                    <th>Keterangan / Menu</th>
+                    <th>Nominal (IDR)</th>
+                    <th>Metode / Kategori</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboardRecentBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             2. TAB PEMASUKAN / OMZET
+             ==================================================================== -->
+        <section class="tab-pane" id="tab-pemasukan">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">Pemasukan & Penjualan Kasir</h2>
+                <p class="card-subtitle">Catat riwayat omzet porsi kebab dan pesanan harian</p>
+              </div>
+              <button class="btn btn-primary" onclick="App.openModal('modalIncome')">
+                <i data-lucide="plus-circle"></i> Catat Pemasukan Baru
+              </button>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+              <div class="search-input-wrap">
+                <i data-lucide="search"></i>
+                <input type="text" class="form-control" id="incomeSearchInput" placeholder="Cari catatan transaksi...">
+              </div>
+              <div class="filter-controls">
+                <input type="month" class="form-control" id="incomeMonthFilter" value="2026-08">
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>No</th>
+                    <th>Tanggal</th>
+                    <th>Porsi Terjual</th>
+                    <th>Total Omzet (IDR)</th>
+                    <th>Catatan / Keterangan</th>
+                    <th style="text-align: right;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="incomeTableBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             3. TAB PENGELUARAN
+             ==================================================================== -->
+        <section class="tab-pane" id="tab-pengeluaran">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">Pengeluaran & Belanja Bahan</h2>
+                <p class="card-subtitle">Catat pembelian daging kebab, tortilla, saus, gas LPG, packaging, dan operasional</p>
+              </div>
+              <button class="btn btn-danger" onclick="App.openModal('modalExpense')">
+                <i data-lucide="plus-circle"></i> Catat Pengeluaran Baru
+              </button>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+              <div class="search-input-wrap">
+                <i data-lucide="search"></i>
+                <input type="text" class="form-control" id="expenseSearchInput" placeholder="Cari rincian barang, nota...">
+              </div>
+              <div class="filter-controls">
+                <select class="form-control" id="expenseCategoryFilter" style="width: 170px;">
+                  <option value="">Semua Kategori</option>
+                  <option value="Bahan Baku">Bahan Baku</option>
+                  <option value="Kemasan">Kemasan / Packaging</option>
+                  <option value="Operasional">Operasional & Listrik</option>
+                  <option value="Sewa">Sewa Tempat</option>
+                  <option value="Lain-lain">Lain-lain</option>
+                </select>
+                <input type="month" class="form-control" id="expenseMonthFilter" value="2026-08">
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>No</th>
+                    <th>Tanggal</th>
+                    <th>Kategori</th>
+                    <th>Nominal (IDR)</th>
+                    <th>Keterangan / Rincian Belanja</th>
+                    <th style="text-align: right;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="expenseTableBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             4. TAB DATA KARYAWAN
+             ==================================================================== -->
+        <section class="tab-pane" id="tab-karyawan">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">Manajemen Karyawan Outlet</h2>
+                <p class="card-subtitle">Data tim outlet, upah harian per kehadiran, dan catatan pinjaman kasbon</p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary" onclick="App.openModal('modalAdvance')">
+                  <i data-lucide="hand-coins"></i> Catat Kasbon
+                </button>
+                <button class="btn btn-primary" onclick="App.openModal('modalEmployee')">
+                  <i data-lucide="user-plus"></i> + Tambah Karyawan
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>No</th>
+                    <th>Nama Lengkap</th>
+                    <th>Posisi / Tugas</th>
+                    <th>No. Handphone</th>
+                    <th>Gaji / Hari Masuk</th>
+                    <th>Kasbon Berjalan</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="employeeTableBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             5. TAB ABSENSI & KEHADIRAN
+             ==================================================================== -->
+        <section class="tab-pane" id="tab-kehadiran">
+          <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">Catat Absensi Harian</h2>
+                <p class="card-subtitle">Pilih tanggal dan centang kehadiran (otomatis mengkalkulasi total gaji pada slip gaji)</p>
+              </div>
+              <div>
+                <input type="date" class="form-control" id="attendanceDatePicker" value="2026-08-19">
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Karyawan</th>
+                    <th>Posisi</th>
+                    <th>Status Kehadiran Hari Ini</th>
+                    <th>Catatan / Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceInputTableBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+              <button class="btn btn-success" id="btnSaveAttendance">
+                <i data-lucide="check"></i> Simpan Status Kehadiran
+              </button>
+            </div>
+          </div>
+
+          <!-- Rekapitulasi Bulanan -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i data-lucide="calendar" style="width: 17px; height: 17px; color: var(--text-main);"></i>
+                <span>Rekap Kehadiran Karyawan Bulan Ini</span>
+              </div>
+              <input type="month" class="form-control" id="attendanceMonthSummaryPicker" value="2026-08" style="width: 170px;">
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Nama Karyawan</th>
+                    <th>Hadir</th>
+                    <th>Izin</th>
+                    <th>Sakit</th>
+                    <th>Alpha</th>
+                    <th>Libur</th>
+                    <th>Total Hari Hadir</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceSummaryTableBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             6. TAB SLIP GAJI (GENERATOR PDF)
+             ==================================================================== -->
+        <section class="tab-pane" id="tab-slip-gaji">
+          <div class="slip-gaji-wrapper">
+            <!-- Form Kalkulator Gaji -->
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Kalkulator & Pengaturan Slip Gaji</h2>
+              </div>
+
+              <form id="payrollCalculatorForm">
+                <!-- Pilihan Karyawan & Tanggal -->
+                <div class="form-row">
+                  <div class="form-group" style="flex: 2;">
+                    <label class="form-label">Pilih Karyawan (NAMA)</label>
+                    <select class="form-control" id="slipEmployeeSelect" required>
+                      <!-- Injected via JS -->
+                    </select>
+                  </div>
+                  <div class="form-group" style="flex: 1.3;">
+                    <label class="form-label">Tanggal Cetak (TGL)</label>
+                    <input type="date" class="form-control" id="slipPrintDate" value="2026-08-19" required>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Periode Bulan Data</label>
+                    <input type="month" class="form-control" id="slipPeriodMonth" value="2026-08" required>
+                  </div>
+                  <div class="form-group" style="flex: 1.5;">
+                    <label class="form-label">Judul Tanggal Slip (Di Struk)</label>
+                    <input type="text" class="form-control" id="slipPeriodTitle" value="15 AGUSTUS 2026" placeholder="Contoh: 15 AGUSTUS 2026">
+                  </div>
+                </div>
+
+                <!-- Bagian Kehadiran & Upah Masuk -->
+                <div style="background: var(--bg-card-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 14px;">
+                  <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
+                    1. Rincian Masuk, Lembur & Libur:
+                  </div>
+
+                  <!-- MASUK -->
+                  <div class="form-group" style="margin-bottom: 8px;">
+                    <label class="form-label" style="font-size: 0.78rem;">MASUK (Otomatis: Hari Hadir x Upah Harian)</label>
+                    <div style="display: flex; gap: 8px;">
+                      <input type="text" class="form-control" id="slipBaseSalarySummaryText" readonly placeholder="0 hari hadir x Rp 0" style="background: #ffffff; font-size: 0.82rem;">
+                      <input type="text" class="form-control" id="slipBaseSalary" readonly style="width: 140px; background: #ffffff; font-weight: 700;">
+                    </div>
+                  </div>
+
+                  <!-- LEMBUR -->
+                  <div class="form-row" style="margin-bottom: 8px;">
+                    <div class="form-group" style="flex: 1;">
+                      <label class="form-label" style="font-size: 0.78rem;">LEMBUR (Hari)</label>
+                      <input type="number" class="form-control" id="slipOvertimeDays" value="0" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group" style="flex: 1.8;">
+                      <label class="form-label" style="font-size: 0.78rem;">Nominal LEMBUR (Rp)</label>
+                      <input type="text" inputmode="numeric" class="form-control currency-input" id="slipOvertimeAmount" value="0" placeholder="0">
+                    </div>
+                  </div>
+
+                  <!-- LIBUR -->
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 0.78rem;">LIBUR (Hari Tidak Masuk)</label>
+                    <input type="text" class="form-control" id="slipDaysOffText" readonly placeholder="0 Hari Libur" style="background: #ffffff; font-size: 0.82rem;">
+                  </div>
+                </div>
+
+                <!-- Bagian Tunjangan & Bonus -->
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">KERAJINAN (Rp)</label>
+                    <input type="text" inputmode="numeric" class="form-control currency-input" id="slipKerajinan" value="0" placeholder="0">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                      <span>BONUS BULANAN (Rp)</span>
+                      <span id="slipBonusAutoBadge" class="badge badge-hadir" style="font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Klik untuk kalkulasi ulang otomatis dari fitur Pemasukan">
+                        <i data-lucide="sparkles" style="width: 11px; height: 11px;"></i> Otomatis dari Pemasukan
+                      </span>
+                    </label>
+                    <input type="text" inputmode="numeric" class="form-control currency-input" id="slipBonus" value="0" placeholder="0">
+                    <small style="color: var(--text-muted); font-size: 0.73rem; display: block; margin-top: 4px; line-height: 1.3;" id="slipBonusFormulaHint">
+                      💡 Dihitung otomatis: <b>10%</b> dari kelebihan omzet Pemasukan > <b>Rp 300.000</b>. <a href="javascript:void(0)" onclick="App.openBonusBreakdownModal()" style="color: var(--pastel-green-text); font-weight: 700; text-decoration: underline;">[Lihat Rincian Harian]</a>
+                    </small>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">PERAWATAN MOTOR (Rp)</label>
+                    <input type="text" inputmode="numeric" class="form-control currency-input" id="slipMotor" value="0" placeholder="0">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">TUNJANGAN PULSA (Rp)</label>
+                    <input type="text" inputmode="numeric" class="form-control currency-input" id="slipPulsa" value="0" placeholder="0">
+                  </div>
+                </div>
+
+                <!-- Tunggakan / Kasbon -->
+                <div class="form-group">
+                  <label class="form-label">TUNGGAKAN / POTONGAN KASBON (Rp)</label>
+                  <input type="text" inputmode="numeric" class="form-control currency-input" id="slipKasbon" value="0" placeholder="0">
+                  <small style="color: var(--text-muted); font-size: 0.74rem;" id="slipKasbonHint">Otomatis terisi dari kasbon pinjaman berjalan karyawan.</small>
+                </div>
+
+                <div style="margin-top: 18px; display: flex; flex-direction: column; gap: 8px;">
+                  <button type="button" class="btn btn-primary" id="btnDownloadSlipPDF" style="width: 100%;">
+                    <i data-lucide="download"></i> [ EXPORT PDF SLIP GAJI ]
+                  </button>
+                  <button type="button" class="btn btn-secondary" onclick="window.print()" style="width: 100%;">
+                    <i data-lucide="printer"></i> Cetak Dokumen
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Live Receipt Previewer (Format Sesuai Struk Fisik) -->
+            <div>
+              <div class="card" style="margin-bottom: 12px; padding: 12px 18px;">
+                <span style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                  <i data-lucide="eye" style="width: 15px; height: 15px; color: var(--text-main);"></i>
+                  Pratinjau Live Slip Gaji (Identik dengan format cetak struk):
+                </span>
+              </div>
+
+              <!-- Struk Slip Fisik Template -->
+              <div class="slip-preview-card" id="slipPreviewReceipt" style="background: #ffffff; border: 2px solid #0f172a; border-radius: 4px; padding: 22px 24px; font-family: 'Courier New', Courier, monospace; color: #0f172a; box-shadow: 0 4px 14px rgba(0,0,0,0.06); max-width: 420px; margin: 0 auto;">
+                
+                <!-- Box Header: NAMA & TGL -->
+                <div style="border: 1.5px solid #0f172a; padding: 8px 12px; margin-bottom: 16px;">
+                  <div style="font-weight: 700; font-size: 0.95rem; line-height: 1.6;">
+                    NAMA : <span id="prevEmpName" style="text-transform: uppercase;">BAJAY</span>
+                  </div>
+                  <div style="font-weight: 700; font-size: 0.95rem; line-height: 1.6;">
+                    TGL &nbsp;: <span id="prevPrintDate">19-08-2026</span>
+                  </div>
+                </div>
+
+                <!-- Header Tanggal / Periode -->
+                <div style="text-align: center; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.5px; margin: 12px 0 16px 0; border-bottom: 1px solid #0f172a; padding-bottom: 4px;" id="prevPeriodTitle">
+                  15 AGUSTUS 2026
+                </div>
+
+                <!-- Rincian Gaji Format Titik-Titik -->
+                <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.92rem; font-weight: 600;">
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>MASUK <span style="letter-spacing: 1px;">.............</span> <span id="prevDaysPresent">18</span> HARI</span>
+                    <span>: <span id="prevMasukAmount">Rp. 1.980.000</span></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>LEMBUR <span style="letter-spacing: 1px;">............</span> <span id="prevDaysOvertime">0</span> HARI</span>
+                    <span>: <span id="prevLemburAmount">Rp. 0</span></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>LIBUR <span style="letter-spacing: 1px;">.............</span> <span id="prevDaysOff">2</span> HARI</span>
+                    <span>-</span>
+                  </div>
+
+                  <div style="height: 4px;"></div>
+
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>KERAJINAN</span>
+                    <span>: <span id="prevKerajinanAmount">Rp. 0</span></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>BONUS BULANAN</span>
+                    <span>: <span id="prevBonusAmount">Rp. 0</span></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>PERAWATAN MOTOR</span>
+                    <span>: <span id="prevMotorAmount">Rp. 0</span></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>TUNJANGAN PULSA</span>
+                    <span>: <span id="prevPulsaAmount">Rp. 0</span></span>
+                  </div>
+
+                  <div style="border-top: 1.5px dashed #0f172a; margin: 10px 0 6px 0;"></div>
+
+                  <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 0.98rem;">
+                    <span>TOTAL</span>
+                    <span>: <span id="prevTotalGrossAmount">Rp. 1.980.000</span></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-weight: 700; color: #be123c;">
+                    <span>TUNGGAKAN</span>
+                    <span>: <span id="prevTunggakanAmount">Rp. 0</span></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 1.1rem; border-top: 2px solid #0f172a; padding-top: 6px; margin-top: 4px; color: #166534;">
+                    <span>TERIMA</span>
+                    <span>: <span id="prevTerimaAmount">Rp. 1.980.000</span></span>
+                  </div>
+                </div>
+
+                <!-- Tanda Tangan Pojok Kanan Bawah -->
+                <div style="display: flex; justify-content: flex-end; margin-top: 32px; text-align: center; font-weight: 700; font-size: 0.92rem;">
+                  <div style="min-width: 130px;">
+                    <div>TTD</div>
+                    <div style="height: 46px;"></div>
+                    <div id="prevSignName" style="text-transform: uppercase; font-weight: 800; border-bottom: 1.5px solid #0f172a; padding-bottom: 2px;">BAJAY</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             7. TAB LAPORAN KEUANGAN & REKAP
+             ==================================================================== -->
+        <section class="tab-pane" id="tab-laporan">
+          <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">Rekapitulasi Laba Rugi & Laporan</h2>
+                <p class="card-subtitle">Pantau performa bisnis, laba bersih, dan ekspor data langsung ke file spreadsheet Excel</p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-success" id="btnExportExcel">
+                  <i data-lucide="file-spreadsheet"></i> [ EXPORT EXCEL (.XLSX) ]
+                </button>
+                <button class="btn btn-secondary" onclick="window.print()">
+                  <i data-lucide="printer"></i> Cetak
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter Laporan -->
+            <div class="filter-bar">
+              <div class="filter-controls">
+                <label class="form-label" style="margin-bottom: 0;">Pilih Periode:</label>
+                <input type="month" class="form-control" id="reportMonthPicker" value="2026-08" style="width: 170px;">
+              </div>
+            </div>
+
+            <!-- Financial Summary Cards -->
+            <div class="kpi-grid" style="margin-top: 14px;">
+              <div class="kpi-card kpi-mint">
+                <div class="kpi-info">
+                  <span class="kpi-label">Total Omzet Penjualan</span>
+                  <span class="kpi-value" id="reportTotalIncome" style="color: var(--pastel-green-text);">Rp 0</span>
+                  <span class="kpi-sub" id="reportPorsiCount">0 Porsi Kebab Terjual</span>
+                </div>
+              </div>
+
+              <div class="kpi-card kpi-rose">
+                <div class="kpi-info">
+                  <span class="kpi-label">Total Beban Operasional</span>
+                  <span class="kpi-value" id="reportTotalExpense" style="color: var(--pastel-rose-text);">Rp 0</span>
+                  <span class="kpi-sub" id="reportExpenseTxCount">0 Nota Belanja</span>
+                </div>
+              </div>
+
+              <div class="kpi-card kpi-purple">
+                <div class="kpi-info">
+                  <span class="kpi-label">LABA BERSIH (NET PROFIT)</span>
+                  <span class="kpi-value" id="reportNetProfit" style="color: var(--pastel-purple-text);">Rp 0</span>
+                  <span class="kpi-sub" id="reportNetMargin">Margin Laba: 0%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category Breakdown Table -->
+            <div style="margin-top: 18px;">
+              <h3 style="font-size: 0.92rem; font-weight: 700; margin-bottom: 10px;">Rincian Pengeluaran Berdasarkan Kategori</h3>
+              <div class="table-responsive">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Kategori</th>
+                      <th>Total Pengeluaran (IDR)</th>
+                      <th>Persentase Terhadap Total Biaya</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reportCategoryTableBody">
+                    <!-- Injected via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====================================================================
+             8. TAB PENGATURAN & BACKUP
+             ==================================================================== -->
+        <section class="tab-pane" id="tab-settings">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px;">
+            <!-- Profil Outlet -->
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Profil Outlet</h2>
+              </div>
+              <form id="settingsForm">
+                <div class="form-group">
+                  <label class="form-label">Nama Outlet</label>
+                  <input type="text" class="form-control" id="setOutletName" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Slogan / Tagline</label>
+                  <input type="text" class="form-control" id="setTagline">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Alamat Lengkap Gerai</label>
+                  <textarea class="form-control" id="setAddress" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">No. Telepon / WhatsApp Outlet</label>
+                  <input type="text" class="form-control" id="setPhone">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nama Pemilik / Penanggung Jawab</label>
+                  <input type="text" class="form-control" id="setOwnerName">
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Target Omzet Harian (IDR)</label>
+                    <input type="text" inputmode="numeric" class="form-control currency-input" id="setDailyTarget" value="300.000">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Persentase Bonus Insentif (%)</label>
+                    <input type="number" class="form-control" id="setIncentivePercent" value="10" min="1" max="100">
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+                  <i data-lucide="check"></i> Simpan Pengaturan
+                </button>
+              </form>
+            </div>
+
+            <!-- Backup & Restore Data -->
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Cadangkan & Pulihkan Data</h2>
+              </div>
+              <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
+                Seluruh data tersimpan langsung di <b>LocalStorage</b> browser ini. Buat file cadangan secara berkala agar aman.
+              </p>
+
+              <!-- Backup Button -->
+              <div style="background-color: var(--bg-card-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px;">
+                <h3 style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">1. Download Backup Data</h3>
+                <p style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 10px;">Menghasilkan file cadangan lengkap (.json).</p>
+                <button class="btn btn-primary btn-sm" id="btnBackupData">
+                  <i data-lucide="download-cloud"></i> [ BACKUP DATA (JSON) ]
+                </button>
+              </div>
+
+              <!-- Restore Button -->
+              <div style="background-color: var(--bg-card-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px;">
+                <h3 style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">2. Pulihkan / Restore Data</h3>
+                <p style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 10px;">Pilih file backup (.json) yang pernah diunduh.</p>
+                <input type="file" id="restoreFileInput" accept=".json" style="display: none;">
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('restoreFileInput').click()">
+                  <i data-lucide="upload-cloud"></i> [ RESTORE DATA ]
+                </button>
+              </div>
+
+              <!-- Reset Bersih -->
+              <div style="border-top: 1px dashed var(--border-color); padding-top: 12px;">
+                <button class="btn btn-danger btn-sm" id="btnResetDemo">
+                  <i data-lucide="trash-2"></i> Kosongkan / Reset Semua Data Transaksi
+                </button>
+                <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 6px;">Menghapus seluruh transaksi, pengeluaran, absensi & kasbon untuk memulai catatan baru dari awal.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODALS
+       ========================================================================== -->
+
+  <!-- Modal Pemasukan -->
+  <div class="modal-backdrop" id="modalIncome">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalIncomeTitle">Catat Pemasukan / Penjualan</h3>
+        <button class="modal-close-btn" onclick="App.closeModal('modalIncome')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="formIncome">
+        <input type="hidden" id="incomeId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Tanggal Transaksi</label>
+            <input type="date" class="form-control" id="incomeDate" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Jumlah Porsi Terjual</label>
+              <input type="number" class="form-control" id="incomePorsi" min="1" placeholder="Contoh: 85" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Total Omzet (IDR)</label>
+              <input type="text" inputmode="numeric" class="form-control currency-input" id="incomeAmount" placeholder="Contoh: 1.500.000" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Catatan / Keterangan (Opsional)</label>
+            <input type="text" class="form-control" id="incomeNote" placeholder="Contoh: Ramai pesanan jam pulang kantor">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="App.closeModal('modalIncome')">Batal</button>
+          <button type="submit" class="btn btn-primary btn-sm">Simpan Transaksi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Pengeluaran -->
+  <div class="modal-backdrop" id="modalExpense">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalExpenseTitle">Catat Pengeluaran Operasional</h3>
+        <button class="modal-close-btn" onclick="App.closeModal('modalExpense')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="formExpense">
+        <input type="hidden" id="expenseId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Tanggal Belanja</label>
+            <input type="date" class="form-control" id="expenseDate" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Kategori Pengeluaran</label>
+              <select class="form-control" id="expenseCategory" required>
+                <option value="Bahan Baku">Bahan Baku (Daging, Tortilla, Saus, Sayur)</option>
+                <option value="Kemasan">Kemasan (Kantong Kertas, Plastik, Dus)</option>
+                <option value="Operasional">Operasional (Gas LPG, Token Listrik, Air)</option>
+                <option value="Sewa">Sewa Tempat Gerai</option>
+                <option value="Lain-lain">Lain-lain</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nominal Belanja (IDR)</label>
+              <input type="text" inputmode="numeric" class="form-control currency-input" id="expenseAmount" placeholder="Contoh: 450.000" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Keterangan / Rincian Barang</label>
+            <textarea class="form-control" id="expenseNote" rows="3" placeholder="Contoh: Beli 2 Roll Daging Kebab Sapi + 5 pack Tortilla Jumbo" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="App.closeModal('modalExpense')">Batal</button>
+          <button type="submit" class="btn btn-danger btn-sm">Simpan Pengeluaran</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Karyawan -->
+  <div class="modal-backdrop" id="modalEmployee">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalEmployeeTitle">Tambah Data Karyawan</h3>
+        <button class="modal-close-btn" onclick="App.closeModal('modalEmployee')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="formEmployee">
+        <input type="hidden" id="employeeId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Nama Lengkap</label>
+            <input type="text" class="form-control" id="empName" placeholder="Contoh: Ahmad Fauzi" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Posisi / Tanggung Jawab</label>
+            <input type="text" class="form-control" id="empRole" placeholder="Contoh: Cook Kebab & Kasir" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">No. Handphone / WhatsApp</label>
+            <input type="text" class="form-control" id="empPhone" placeholder="0812-xxxx-xxxx">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gaji / Upah per Hari Masuk (IDR)</label>
+            <input type="text" inputmode="numeric" class="form-control currency-input" id="empDailySalary" placeholder="Contoh: 90.000" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status Karyawan</label>
+            <select class="form-control" id="empStatus">
+              <option value="active">Aktif</option>
+              <option value="inactive">Non-Aktif</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="App.closeModal('modalEmployee')">Batal</button>
+          <button type="submit" class="btn btn-primary btn-sm">Simpan Karyawan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Catat Kasbon Karyawan -->
+  <div class="modal-backdrop" id="modalAdvance">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Catat Kasbon Karyawan</h3>
+        <button class="modal-close-btn" onclick="App.closeModal('modalAdvance')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="formAdvance">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Pilih Karyawan</label>
+            <select class="form-control" id="advanceEmployeeSelect" required>
+              <!-- Injected via JS -->
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Tanggal Pinjam</label>
+              <input type="date" class="form-control" id="advanceDate" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nominal Kasbon (IDR)</label>
+              <input type="text" inputmode="numeric" class="form-control currency-input" id="advanceAmount" placeholder="Contoh: 100.000" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Keperluan / Keterangan</label>
+            <input type="text" class="form-control" id="advanceNote" placeholder="Contoh: Kebutuhan mendesak / servis motor" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="App.closeModal('modalAdvance')">Batal</button>
+          <button type="submit" class="btn btn-primary btn-sm">Simpan Kasbon</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Rincian Kalkulasi Bonus Omzet dari Pemasukan -->
+  <div class="modal-backdrop" id="modalBonusBreakdown">
+    <div class="modal-card" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="sparkles" style="color: #ea580c; width: 20px; height: 20px;"></i> Rincian Bonus Omzet dari Pemasukan
+        </h3>
+        <button class="modal-close-btn" onclick="App.closeModal('modalBonusBreakdown')"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" id="modalBonusBreakdownBody">
+        <!-- Injected via JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="App.closeModal('modalBonusBreakdown')">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Application Logic Scripts -->
+  <script src="js/db.js"></script>
+  <script src="js/pdf-export.js"></script>
+  <script src="js/xlsx-export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
