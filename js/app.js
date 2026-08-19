@@ -472,6 +472,7 @@ const App = {
     const setOwnerName = document.getElementById('setOwnerName');
     const setDailyTarget = document.getElementById('setDailyTarget');
     const setIncentivePercent = document.getElementById('setIncentivePercent');
+    const setOvertimeRate = document.getElementById('setOvertimeRate');
 
     if (setOutletName) setOutletName.value = settings.outletName || '';
     if (setTagline) setTagline.value = settings.tagline || '';
@@ -480,6 +481,7 @@ const App = {
     if (setOwnerName) setOwnerName.value = settings.ownerName || '';
     if (setDailyTarget) setDailyTarget.value = this.formatNumberInput(settings.dailyTarget || 300000);
     if (setIncentivePercent) setIncentivePercent.value = settings.incentivePercent || 10;
+    if (setOvertimeRate) setOvertimeRate.value = this.formatNumberInput(settings.overtimeRate || 70000);
   },
 
   /**
@@ -493,13 +495,14 @@ const App = {
       phone: document.getElementById('setPhone').value.trim(),
       ownerName: document.getElementById('setOwnerName').value.trim(),
       dailyTarget: this.parseCleanNumber(document.getElementById('setDailyTarget')?.value) || 300000,
-      incentivePercent: Number(document.getElementById('setIncentivePercent')?.value || 10)
+      incentivePercent: Number(document.getElementById('setIncentivePercent')?.value || 10),
+      overtimeRate: this.parseCleanNumber(document.getElementById('setOvertimeRate')?.value) || 70000
     };
 
     const current = DB.get(DB_KEYS.SETTINGS);
     DB.set(DB_KEYS.SETTINGS, { ...current, ...updated });
 
-    this.toast('Pengaturan outlet & target insentif berhasil disimpan!', 'success');
+    this.toast('Pengaturan outlet & tarif lembur berhasil disimpan!', 'success');
     this.renderSettings();
     this.updatePayrollCalculation(true);
   },
@@ -1070,6 +1073,9 @@ const App = {
   /**
    * Render Input Absensi Harian
    */
+  /**
+   * Render Input Absensi Harian
+   */
   renderAttendanceInput() {
     const body = document.getElementById('attendanceInputTableBody');
     if (!body) return;
@@ -1077,15 +1083,18 @@ const App = {
     const date = document.getElementById('attendanceDatePicker')?.value || '2026-08-19';
     const employees = DB.get(DB_KEYS.EMPLOYEES).filter(e => e.status === 'active');
     const allAtt = DB.get(DB_KEYS.ATTENDANCE);
+    const settings = DB.get(DB_KEYS.SETTINGS);
+    const overtimeRate = Number(settings.overtimeRate || 70000);
 
     if (employees.length === 0) {
-      body.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-dim); padding: 18px;">Belum ada karyawan aktif. Tambahkan karyawan di menu Data Karyawan.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 18px;">Belum ada karyawan aktif. Tambahkan karyawan di menu Data Karyawan.</td></tr>`;
       return;
     }
 
     body.innerHTML = employees.map(emp => {
       const existing = allAtt.find(a => a.employeeId === emp.id && a.date === date);
       const currentStatus = existing ? existing.status : 'hadir';
+      const isOvertime = existing ? (existing.isOvertime === true || existing.isOvertime === 'true' || existing.status === 'lembur') : false;
       const note = existing ? existing.note : '';
 
       return `
@@ -1116,6 +1125,14 @@ const App = {
               </label>
             </div>
           </td>
+          <td style="text-align: center;">
+            <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid ${isOvertime ? '#fed7aa' : 'var(--border-color)'}; border-radius: var(--radius-md); background: ${isOvertime ? 'var(--pastel-amber-bg)' : 'transparent'};">
+              <input type="checkbox" class="att-overtime-checkbox" ${isOvertime ? 'checked' : ''} style="cursor: pointer;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: ${isOvertime ? 'var(--pastel-amber-text)' : 'var(--text-main)'};">
+                ⚡ Lembur (+${this.formatRupiah(overtimeRate)})
+              </span>
+            </label>
+          </td>
           <td>
             <input type="text" class="form-control att-note-input" value="${note}" placeholder="Keterangan..." style="padding: 5px 10px; font-size: 0.82rem;">
           </td>
@@ -1137,6 +1154,7 @@ const App = {
     rows.forEach(row => {
       const empId = row.getAttribute('data-emp-id');
       const selectedStatus = row.querySelector(`input[name="att_${empId}"]:checked`)?.value || 'hadir';
+      const isOvertime = row.querySelector('.att-overtime-checkbox')?.checked || false;
       const note = row.querySelector('.att-note-input')?.value.trim() || '';
 
       filtered.push({
@@ -1144,6 +1162,7 @@ const App = {
         employeeId: empId,
         date: date,
         status: selectedStatus,
+        isOvertime: isOvertime,
         note: note
       });
     });
@@ -1164,19 +1183,27 @@ const App = {
 
     const month = document.getElementById('attendanceMonthSummaryPicker')?.value || '2026-08';
     const employees = DB.get(DB_KEYS.EMPLOYEES);
+    const settings = DB.get(DB_KEYS.SETTINGS);
+    const overtimeRate = Number(settings.overtimeRate || 70000);
 
     if (employees.length === 0) {
-      body.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 18px;">Belum ada data karyawan.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 18px;">Belum ada data karyawan.</td></tr>`;
       return;
     }
 
     body.innerHTML = employees.map(emp => {
       const sum = DB.getEmployeeAttendanceSummary(emp.id, month);
+      const totalLemburPay = sum.lembur * overtimeRate;
 
       return `
         <tr>
           <td><b>${emp.name}</b></td>
           <td><span class="badge badge-hadir">${sum.hadir} Hari</span></td>
+          <td>
+            <span class="badge" style="background: var(--pastel-amber-bg); color: var(--pastel-amber-text); font-weight: 700;">
+              ⚡ ${sum.lembur} Hari (+${this.formatRupiah(totalLemburPay)})
+            </span>
+          </td>
           <td><span class="badge badge-izin">${sum.izin} Hari</span></td>
           <td><span class="badge badge-sakit">${sum.sakit} Hari</span></td>
           <td><span class="badge badge-alpha">${sum.alpha} Hari</span></td>
@@ -1202,6 +1229,8 @@ const App = {
       if (prevEmpName) prevEmpName.textContent = '-';
       const prevMasukAmount = document.getElementById('prevMasukAmount');
       if (prevMasukAmount) prevMasukAmount.textContent = 'Rp. 0';
+      const prevDaysOvertime = document.getElementById('prevDaysOvertime');
+      if (prevDaysOvertime) prevDaysOvertime.textContent = '0';
       const prevLemburAmount = document.getElementById('prevLemburAmount');
       if (prevLemburAmount) prevLemburAmount.textContent = 'Rp. 0';
       const prevKerajinanAmount = document.getElementById('prevKerajinanAmount');
@@ -1239,7 +1268,19 @@ const App = {
     const daysPresent = attSum.hadir;
     const masukAmount = daysPresent * dailySalaryRate;
 
-    // 2. LEMBUR
+    // 2. LEMBUR (Otomatis dari Absensi Lembur x Tarif Lembur Rp 70.000)
+    const overtimeRate = Number(settings.overtimeRate || 70000);
+    const autoOvertimeDays = attSum.lembur || 0;
+    const autoOvertimeAmount = autoOvertimeDays * overtimeRate;
+
+    const elOvertimeDays = document.getElementById('slipOvertimeDays');
+    const elOvertimeAmount = document.getElementById('slipOvertimeAmount');
+
+    if (autoRecalculateBonus && elOvertimeDays && elOvertimeAmount) {
+      elOvertimeDays.value = autoOvertimeDays;
+      elOvertimeAmount.value = this.formatNumberInput(autoOvertimeAmount);
+    }
+
     const overtimeDays = Number(document.getElementById('slipOvertimeDays')?.value || 0);
     const overtimeAmount = this.parseCleanNumber(document.getElementById('slipOvertimeAmount')?.value);
 

@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS = {
   targetMonthlyIncome: 35000000,
   dailyTarget: 300000, // Target omzet harian (Rp 300.000)
   incentivePercent: 10, // 10% dari kelebihan target masuk ke pembagian bonus
+  overtimeRate: 70000, // Tarif lembur per hari (Rp 70.000)
   logoEmoji: '🌯'
 };
 
@@ -232,12 +233,16 @@ const DB = {
       sakit: 0,
       alpha: 0,
       libur: 0,
+      lembur: 0,
       totalHari: filtered.length
     };
 
     filtered.forEach(item => {
       if (summary[item.status] !== undefined) {
         summary[item.status]++;
+      }
+      if (item.isOvertime === true || item.isOvertime === 'true' || item.status === 'lembur') {
+        summary.lembur++;
       }
     });
 

@@ -422,6 +422,7 @@
                     <th>Karyawan</th>
                     <th>Posisi</th>
                     <th>Status Kehadiran Hari Ini</th>
+                    <th style="text-align: center;">Lembur (Rp 70rb)</th>
                     <th>Catatan / Keterangan</th>
                   </tr>
                 </thead>
@@ -452,11 +453,12 @@
                   <tr>
                     <th>Nama Karyawan</th>
                     <th>Hadir</th>
+                    <th>Lembur</th>
                     <th>Izin</th>
                     <th>Sakit</th>
                     <th>Alpha</th>
                     <th>Libur</th>
-                    <th>Total Hari Hadir</th>
+                    <th>Total Hari Kerja</th>
                   </tr>
                 </thead>
                 <tbody id="attendanceSummaryTableBody">
@@ -520,7 +522,7 @@
                   </div>
 
                   <!-- LEMBUR -->
-                  <div class="form-row" style="margin-bottom: 8px;">
+                  <div class="form-row" style="margin-bottom: 2px;">
                     <div class="form-group" style="flex: 1;">
                       <label class="form-label" style="font-size: 0.78rem;">LEMBUR (Hari)</label>
                       <input type="number" class="form-control" id="slipOvertimeDays" value="0" min="0" placeholder="0">
@@ -530,6 +532,9 @@
                       <input type="text" inputmode="numeric" class="form-control currency-input" id="slipOvertimeAmount" value="0" placeholder="0">
                     </div>
                   </div>
+                  <small style="color: var(--text-muted); font-size: 0.72rem; display: block; margin-bottom: 8px;" id="slipOvertimeHint">
+                    💡 Otomatis dihitung: Jumlah hari lembur x Rp 70.000 (dari catatan Absensi).
+                  </small>
 
                   <!-- LIBUR -->
                   <div class="form-group" style="margin-bottom: 0;">
@@ -790,8 +795,12 @@
                     <input type="text" inputmode="numeric" class="form-control currency-input" id="setDailyTarget" value="300.000">
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Persentase Bonus Insentif (%)</label>
+                    <label class="form-label">Bonus Insentif (%)</label>
                     <input type="number" class="form-control" id="setIncentivePercent" value="10" min="1" max="100">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Tarif Lembur / Hari (IDR)</label>
+                    <input type="text" inputmode="numeric" class="form-control currency-input" id="setOvertimeRate" value="70.000">
                   </div>
                 </div>
                 <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
