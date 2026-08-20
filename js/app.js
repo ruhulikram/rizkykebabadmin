@@ -157,24 +157,47 @@ const App = {
       item.addEventListener('click', () => {
         const targetTab = item.getAttribute('data-tab');
         if (!targetTab) return;
-
         this.switchTab(targetTab);
       });
     });
 
-    // Mobile Hamburger Toggle
-    const mobileBtn = document.getElementById('mobileToggleBtn');
-    if (mobileBtn && sidebar) {
-      mobileBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('mobile-open');
+    // Mobile Bottom Navigation items
+    const bottomNavItems = document.querySelectorAll('.bottom-nav-item[data-tab]');
+    bottomNavItems.forEach(bItem => {
+      bItem.addEventListener('click', () => {
+        const targetTab = bItem.getAttribute('data-tab');
+        if (!targetTab) return;
+        this.switchTab(targetTab);
       });
+    });
+
+    const backdrop = document.getElementById('sidebarBackdrop');
+
+    const toggleMobileSidebar = (open) => {
+      if (!sidebar) return;
+      const isOpen = open !== undefined ? open : !sidebar.classList.contains('mobile-open');
+      sidebar.classList.toggle('mobile-open', isOpen);
+      if (backdrop) backdrop.classList.toggle('active', isOpen);
+    };
+
+    // Mobile Hamburger & Bottom Nav 'Menu' Toggle
+    const mobileBtn = document.getElementById('mobileToggleBtn');
+    if (mobileBtn) {
+      mobileBtn.addEventListener('click', () => toggleMobileSidebar());
+    }
+
+    const bottomNavMore = document.getElementById('bottomNavMoreBtn');
+    if (bottomNavMore) {
+      bottomNavMore.addEventListener('click', () => toggleMobileSidebar());
     }
 
     const closeBtn = document.getElementById('sidebarCloseBtn');
-    if (closeBtn && sidebar) {
-      closeBtn.addEventListener('click', () => {
-        sidebar.classList.remove('mobile-open');
-      });
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => toggleMobileSidebar(false));
+    }
+
+    if (backdrop) {
+      backdrop.addEventListener('click', () => toggleMobileSidebar(false));
     }
   },
 
@@ -183,10 +206,12 @@ const App = {
    */
   switchTab(targetTab) {
     const navItems = document.querySelectorAll('.nav-item');
+    const bottomNavItems = document.querySelectorAll('.bottom-nav-item[data-tab]');
     const tabPanes = document.querySelectorAll('.tab-pane');
     const pageTitle = document.getElementById('pageTitle');
     const breadcrumbCurrent = document.getElementById('breadcrumbCurrent');
     const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
 
     const tabDescriptions = {
       'dashboard': { title: 'Dashboard Ringkasan', breadcrumb: 'Dashboard' },
@@ -201,12 +226,21 @@ const App = {
 
     this.activeTab = targetTab;
 
-    // Update nav active class
+    // Update desktop sidebar nav active class
     navItems.forEach(n => {
       if (n.getAttribute('data-tab') === targetTab) {
         n.classList.add('active');
       } else {
         n.classList.remove('active');
+      }
+    });
+
+    // Update mobile bottom nav active class
+    bottomNavItems.forEach(b => {
+      if (b.getAttribute('data-tab') === targetTab) {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
       }
     });
 
@@ -225,10 +259,12 @@ const App = {
       if (breadcrumbCurrent) breadcrumbCurrent.textContent = tabDescriptions[targetTab].breadcrumb;
     }
 
-    // Close sidebar on mobile
-    if (window.innerWidth <= 768 && sidebar) {
-      sidebar.classList.remove('mobile-open');
-    }
+    // Close sidebar drawer on mobile
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('active');
+
+    // Scroll to top of content
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Refresh view data
     this.renderActiveTab(targetTab);
@@ -238,13 +274,18 @@ const App = {
    * Setup Seluruh Event Listener Form & Aksi
    */
   setupEventListeners() {
-    // Form Pemasukan Submit
+    // Form Pemasukan Submit & Live Bonus Indicator
     const formIncome = document.getElementById('formIncome');
     if (formIncome) {
       formIncome.addEventListener('submit', (e) => {
         e.preventDefault();
         this.handleSaveIncome();
       });
+    }
+
+    const incomeAmountInput = document.getElementById('incomeAmount');
+    if (incomeAmountInput) {
+      incomeAmountInput.addEventListener('input', () => this.updateIncomeModalLivePreview());
     }
 
     // Form Pengeluaran Submit
@@ -523,7 +564,13 @@ const App = {
     // Hitung KPI
     const totalIncome = monthIncome.reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const totalExpense = monthExpense.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const netProfit = totalIncome - totalExpense;
+    
+    // Potongan Bonus Insentif Karyawan (10% dari kelebihan omzet harian > Rp 300.000)
+    const outletBonusData = DB.calculateMonthlyOutletBonus(currentMonth);
+    const totalBonusPool = outletBonusData.totalBonusPool || 0;
+
+    // Laba Bersih Outlet = Total Omzet - Total Belanja - Total Bonus Insentif
+    const netProfit = totalIncome - totalExpense - totalBonusPool;
     const totalPorsi = monthIncome.reduce((sum, item) => sum + Number(item.porsi || 0), 0);
 
     const todayIncome = incomeList.filter(i => i.date === today).reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -546,7 +593,11 @@ const App = {
 
     const marginPct = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0;
     const elMargin = document.getElementById('kpiProfitMargin');
-    if (elMargin) elMargin.textContent = `Margin: ${marginPct}%`;
+    if (elMargin) {
+      elMargin.textContent = totalBonusPool > 0
+        ? `Margin: ${marginPct}% (Potong Bonus: ${this.formatRupiah(totalBonusPool)})`
+        : `Margin: ${marginPct}%`;
+    }
 
     const elPorsi = document.getElementById('kpiTotalPorsi');
     if (elPorsi) elPorsi.textContent = `${totalPorsi.toLocaleString('id-ID')} Porsi`;
@@ -731,6 +782,11 @@ const App = {
     if (!body) return;
 
     const all = DB.get(DB_KEYS.INCOME);
+    const settings = DB.get(DB_KEYS.SETTINGS);
+    const dailyTarget = Number(settings.dailyTarget || 300000);
+    const incentivePercent = Number(settings.incentivePercent || 10);
+    const incentiveRate = incentivePercent / 100;
+
     const search = (document.getElementById('incomeSearchInput')?.value || '').toLowerCase();
     const month = document.getElementById('incomeMonthFilter')?.value || '';
 
@@ -741,29 +797,96 @@ const App = {
     });
 
     if (filtered.length === 0) {
-      body.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 24px;">Tidak ada data pemasukan yang cocok.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Tidak ada data pemasukan yang cocok.</td></tr>`;
       return;
     }
 
-    body.innerHTML = filtered.map((item, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${this.formatDateIndo(item.date)}</td>
-        <td><span class="badge badge-qris">${item.porsi || 0} Porsi</span></td>
-        <td style="font-weight: 700; color: var(--pastel-green-text);">${this.formatRupiah(item.amount)}</td>
-        <td style="color: var(--text-muted); font-size: 0.84rem;">${item.note || '-'}</td>
-        <td style="text-align: right;">
-          <button class="btn btn-icon btn-sm" onclick="App.editIncome('${item.id}')" title="Edit Transaksi">
-            <i data-lucide="edit-3"></i>
-          </button>
-          <button class="btn btn-icon btn-sm" style="color: var(--pastel-rose-text);" onclick="App.deleteIncome('${item.id}')" title="Hapus Transaksi">
-            <i data-lucide="trash-2"></i>
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    body.innerHTML = filtered.map((item, idx) => {
+      const amt = Number(item.amount || 0);
+      const isTargetMet = amt > dailyTarget;
+      const surplus = isTargetMet ? (amt - dailyTarget) : 0;
+      const bonus = isTargetMet ? Math.round(surplus * incentiveRate) : 0;
+      const netOmzet = amt - bonus;
+
+      const bonusBadge = isTargetMet
+        ? `<span class="badge" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-weight: 700; font-size: 0.74rem;">+ ${this.formatRupiah(bonus)}</span>`
+        : `<span style="color: #94a3b8; font-size: 0.74rem; font-weight: 500;">Rp 0 (≤ 300rb)</span>`;
+
+      return `
+        <tr>
+          <td style="text-align: center; color: var(--text-dim); font-size: 0.8rem;">${idx + 1}</td>
+          <td style="white-space: nowrap; font-weight: 600;">${this.formatDateIndo(item.date)}</td>
+          <td><span class="badge badge-qris"><i data-lucide="utensils" style="width: 11px; height: 11px;"></i> ${item.porsi || 0} Porsi</span></td>
+          <td style="font-weight: 700; color: var(--text-main); white-space: nowrap;">${this.formatRupiah(amt)}</td>
+          <td>${bonusBadge}</td>
+          <td style="font-weight: 800; color: #166534; white-space: nowrap;">${this.formatRupiah(netOmzet)}</td>
+          <td class="cell-wrap" style="color: var(--text-muted); font-size: 0.82rem;">${item.note || '-'}</td>
+          <td style="text-align: right; white-space: nowrap;">
+            <button class="btn btn-icon btn-sm" onclick="App.editIncome('${item.id}')" title="Edit Transaksi">
+              <i data-lucide="edit-3"></i>
+            </button>
+            <button class="btn btn-icon btn-sm" style="color: var(--pastel-rose-text);" onclick="App.deleteIncome('${item.id}')" title="Hapus Transaksi">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
     if (window.lucide) lucide.createIcons();
+  },
+
+  /**
+   * Live Kalkulator Target & Bonus Kru di Modal Pemasukan (Per Hari/Transaksi)
+   */
+  updateIncomeModalLivePreview() {
+    const settings = DB.get(DB_KEYS.SETTINGS);
+    const dailyTarget = Number(settings.dailyTarget || 300000);
+    const incentivePercent = Number(settings.incentivePercent || 10);
+    const incentiveRate = incentivePercent / 100;
+
+    const rawVal = document.getElementById('incomeAmount')?.value || '0';
+    const amount = this.parseCleanNumber(rawVal);
+
+    const lblTarget = document.getElementById('lblIncomeDailyTarget');
+    if (lblTarget) lblTarget.textContent = this.formatRupiah(dailyTarget);
+
+    const badge = document.getElementById('lblIncomeTargetBadge');
+    const lblBonus = document.getElementById('lblIncomeBonusText');
+    const lblNet = document.getElementById('lblIncomeNetOmzetText');
+
+    if (amount > dailyTarget) {
+      const surplus = amount - dailyTarget;
+      const bonus = Math.round(surplus * incentiveRate);
+      const netOmzet = amount - bonus;
+
+      if (badge) {
+        badge.className = 'badge badge-hadir';
+        badge.textContent = `🎯 Tembus (+${this.formatRupiah(surplus)})`;
+      }
+      if (lblBonus) {
+        lblBonus.textContent = `+ ${this.formatRupiah(bonus)} (${incentivePercent}% dari kelebihan)`;
+        lblBonus.style.color = '#ea580c';
+      }
+      if (lblNet) {
+        lblNet.textContent = this.formatRupiah(netOmzet);
+      }
+    } else {
+      const deficit = dailyTarget - amount;
+      if (badge) {
+        badge.className = 'badge';
+        badge.style.background = '#f1f5f9';
+        badge.style.color = '#64748b';
+        badge.textContent = amount > 0 ? `Kurang ${this.formatRupiah(deficit)}` : 'Belum Capai';
+      }
+      if (lblBonus) {
+        lblBonus.textContent = 'Rp 0 (Di bawah target Rp 300.000)';
+        lblBonus.style.color = '#94a3b8';
+      }
+      if (lblNet) {
+        lblNet.textContent = this.formatRupiah(amount);
+      }
+    }
   },
 
   /**
@@ -802,6 +925,8 @@ const App = {
     document.getElementById('incomePorsi').value = item.porsi;
     document.getElementById('incomeAmount').value = this.formatNumberInput(item.amount);
     document.getElementById('incomeNote').value = item.note || '';
+
+    this.updateIncomeModalLivePreview();
 
     document.getElementById('modalIncomeTitle').textContent = 'Edit Transaksi Pemasukan';
     this.openModal('modalIncome');
@@ -844,16 +969,16 @@ const App = {
 
     body.innerHTML = filtered.map((item, idx) => `
       <tr>
-        <td>${idx + 1}</td>
-        <td>${this.formatDateIndo(item.date)}</td>
+        <td style="text-align: center; color: var(--text-dim); font-size: 0.8rem;">${idx + 1}</td>
+        <td style="white-space: nowrap; font-weight: 600;">${this.formatDateIndo(item.date)}</td>
         <td>
-          <span class="badge" style="background: var(--pastel-amber-bg); color: var(--pastel-amber-text);">
+          <span class="badge badge-izin">
             ${item.category || 'Operasional'}
           </span>
         </td>
-        <td style="font-weight: 700; color: var(--pastel-rose-text);">${this.formatRupiah(item.amount)}</td>
-        <td style="color: var(--text-main); font-size: 0.86rem;">${item.note || '-'}</td>
-        <td style="text-align: right;">
+        <td style="font-weight: 700; color: var(--pastel-rose-text); white-space: nowrap;">${this.formatRupiah(item.amount)}</td>
+        <td class="cell-wrap" style="color: var(--text-main); font-size: 0.84rem;">${item.note || '-'}</td>
+        <td style="text-align: right; white-space: nowrap;">
           <button class="btn btn-icon btn-sm" onclick="App.editExpense('${item.id}')" title="Edit Belanja">
             <i data-lucide="edit-3"></i>
           </button>
@@ -940,12 +1065,12 @@ const App = {
 
       return `
         <tr>
-          <td>${idx + 1}</td>
-          <td><b>${emp.name}</b></td>
-          <td>${emp.role}</td>
-          <td>${emp.phone || '-'}</td>
-          <td style="font-weight: 700; color: var(--text-main);">${this.formatRupiah(dailySalary)} / hari</td>
-          <td style="color: ${totalKasbon > 0 ? 'var(--pastel-rose-text)' : 'var(--text-dim)'}; font-weight: 700;">
+          <td style="text-align: center; color: var(--text-dim); font-size: 0.8rem;">${idx + 1}</td>
+          <td style="white-space: nowrap; font-weight: 700; color: var(--text-main);">${emp.name}</td>
+          <td><span class="badge badge-libur" style="font-weight: 600;">${emp.role}</span></td>
+          <td style="white-space: nowrap; color: var(--text-muted); font-size: 0.82rem;">${emp.phone || '-'}</td>
+          <td style="font-weight: 700; color: var(--text-main); white-space: nowrap;">${this.formatRupiah(dailySalary)} <small style="font-weight: normal; color: var(--text-dim);">/ hari</small></td>
+          <td style="color: ${totalKasbon > 0 ? 'var(--pastel-rose-text)' : 'var(--text-dim)'}; font-weight: 700; white-space: nowrap;">
             ${totalKasbon > 0 ? this.formatRupiah(totalKasbon) : 'Rp 0'}
           </td>
           <td>
@@ -953,7 +1078,7 @@ const App = {
               ${emp.status === 'active' ? 'Aktif' : 'Non-Aktif'}
             </span>
           </td>
-          <td style="text-align: right;">
+          <td style="text-align: right; white-space: nowrap;">
             <button class="btn btn-icon btn-sm" onclick="App.editEmployee('${emp.id}')" title="Edit Karyawan">
               <i data-lucide="edit-3"></i>
             </button>
@@ -1249,10 +1374,23 @@ const App = {
       if (prevTerimaAmount) prevTerimaAmount.textContent = 'Rp. 0';
       const prevSignName = document.getElementById('prevSignName');
       if (prevSignName) prevSignName.textContent = '-';
-      const elBaseSummaryText = document.getElementById('slipBaseSalarySummaryText');
-      if (elBaseSummaryText) elBaseSummaryText.value = 'Belum ada data karyawan';
-      const elBase = document.getElementById('slipBaseSalary');
-      if (elBase) elBase.value = 'Rp 0';
+
+      // Reset info display
+      const dispMasukDetail = document.getElementById('dispSlipMasukDetail');
+      if (dispMasukDetail) dispMasukDetail.textContent = '0 hari hadir x Rp 0';
+      const dispMasukAmount = document.getElementById('dispSlipMasukAmount');
+      if (dispMasukAmount) dispMasukAmount.textContent = 'Rp 0';
+      const dispLemburBadge = document.getElementById('dispSlipLemburBadge');
+      if (dispLemburBadge) dispLemburBadge.textContent = '0 Hari';
+      const dispLemburDetail = document.getElementById('dispSlipLemburDetail');
+      if (dispLemburDetail) dispLemburDetail.textContent = '0 hari lembur x Rp 70.000';
+      const dispLemburAmount = document.getElementById('dispSlipLemburAmount');
+      if (dispLemburAmount) dispLemburAmount.textContent = 'Rp 0';
+      const dispLiburDetail = document.getElementById('dispSlipLiburDetail');
+      if (dispLiburDetail) dispLiburDetail.textContent = 'Izin: 0, Sakit: 0, Alpha: 0, Libur: 0';
+      const dispLiburCount = document.getElementById('dispSlipLiburCount');
+      if (dispLiburCount) dispLiburCount.textContent = '0 Hari';
+
       this.currentPayrollData = null;
       return;
     }
@@ -1263,26 +1401,15 @@ const App = {
     const dbAdvances = DB.getEmployeeAdvances(emp.id, period);
     const totalDbAdvance = dbAdvances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
 
-    // 1. MASUK: Hari Hadir x Gaji Harian
+    // 1. MASUK: Hari Hadir x Gaji Harian (Otomatis dari Absensi)
     const dailySalaryRate = Number(emp.dailySalary || 100000);
-    const daysPresent = attSum.hadir;
+    const daysPresent = attSum.hadir || 0;
     const masukAmount = daysPresent * dailySalaryRate;
 
-    // 2. LEMBUR (Otomatis dari Absensi Lembur x Tarif Lembur Rp 70.000)
+    // 2. LEMBUR: Hari Lembur x Tarif Lembur (Otomatis dari Absensi)
     const overtimeRate = Number(settings.overtimeRate || 70000);
-    const autoOvertimeDays = attSum.lembur || 0;
-    const autoOvertimeAmount = autoOvertimeDays * overtimeRate;
-
-    const elOvertimeDays = document.getElementById('slipOvertimeDays');
-    const elOvertimeAmount = document.getElementById('slipOvertimeAmount');
-
-    if (autoRecalculateBonus && elOvertimeDays && elOvertimeAmount) {
-      elOvertimeDays.value = autoOvertimeDays;
-      elOvertimeAmount.value = this.formatNumberInput(autoOvertimeAmount);
-    }
-
-    const overtimeDays = Number(document.getElementById('slipOvertimeDays')?.value || 0);
-    const overtimeAmount = this.parseCleanNumber(document.getElementById('slipOvertimeAmount')?.value);
+    const overtimeDays = attSum.lembur || 0;
+    const overtimeAmount = overtimeDays * overtimeRate;
 
     // 3. LIBUR: Jumlah Hari Tidak Hadir (Libur + Izin + Sakit + Alpha)
     const daysOff = (attSum.libur || 0) + (attSum.izin || 0) + (attSum.sakit || 0) + (attSum.alpha || 0);
@@ -1317,15 +1444,27 @@ const App = {
     // TERIMA BERSIH (TAKE HOME PAY)
     const terima = Math.max(0, totalGross - tunggakan);
 
-    // === Update Form Input Teks ===
-    const elBaseSummaryText = document.getElementById('slipBaseSalarySummaryText');
-    if (elBaseSummaryText) elBaseSummaryText.value = `${daysPresent} hari hadir x ${this.formatRupiah(dailySalaryRate)}`;
+    // === Update Display Kartu Presensi Otomatis ===
+    const dispMasukDetail = document.getElementById('dispSlipMasukDetail');
+    if (dispMasukDetail) dispMasukDetail.textContent = `${daysPresent} hari hadir x ${this.formatRupiah(dailySalaryRate)}`;
 
-    const elBase = document.getElementById('slipBaseSalary');
-    if (elBase) elBase.value = this.formatRupiah(masukAmount);
+    const dispMasukAmount = document.getElementById('dispSlipMasukAmount');
+    if (dispMasukAmount) dispMasukAmount.textContent = this.formatRupiah(masukAmount);
 
-    const elDaysOffText = document.getElementById('slipDaysOffText');
-    if (elDaysOffText) elDaysOffText.value = `${daysOff} Hari Libur/Off (Izin: ${attSum.izin}, Sakit: ${attSum.sakit}, Alpha: ${attSum.alpha}, Libur: ${attSum.libur})`;
+    const dispLemburBadge = document.getElementById('dispSlipLemburBadge');
+    if (dispLemburBadge) dispLemburBadge.textContent = `${overtimeDays} Hari`;
+
+    const dispLemburDetail = document.getElementById('dispSlipLemburDetail');
+    if (dispLemburDetail) dispLemburDetail.textContent = `${overtimeDays} hari lembur x ${this.formatRupiah(overtimeRate)}`;
+
+    const dispLemburAmount = document.getElementById('dispSlipLemburAmount');
+    if (dispLemburAmount) dispLemburAmount.textContent = this.formatRupiah(overtimeAmount);
+
+    const dispLiburDetail = document.getElementById('dispSlipLiburDetail');
+    if (dispLiburDetail) dispLiburDetail.textContent = `Izin: ${attSum.izin || 0}, Sakit: ${attSum.sakit || 0}, Alpha: ${attSum.alpha || 0}, Libur: ${attSum.libur || 0}`;
+
+    const dispLiburCount = document.getElementById('dispSlipLiburCount');
+    if (dispLiburCount) dispLiburCount.textContent = `${daysOff} Hari`;
 
     const elKasbonHint = document.getElementById('slipKasbonHint');
     if (elKasbonHint) {
@@ -1336,7 +1475,7 @@ const App = {
 
     const elHint = document.getElementById('slipBonusFormulaHint');
     if (elHint) {
-      elHint.innerHTML = `💡 Dihitung otomatis: <b>${autoIncentive.incentivePercent}%</b> dari omzet Pemasukan > <b>${this.formatRupiah(autoIncentive.dailyTarget)}</b>. (${autoIncentive.qualifiedDays} hari tembus target, total: <b>${this.formatRupiah(autoIncentive.totalBonus)}</b>) <a href="javascript:void(0)" onclick="App.openBonusBreakdownModal()" style="color: var(--pastel-green-text); font-weight: 700; text-decoration: underline;">[Lihat Rincian Harian]</a>`;
+      elHint.innerHTML = `💡 Otomatis: <b>${autoIncentive.qualifiedDays} hari tembus</b> > Rp 300rb = <b>${this.formatRupiah(autoIncentive.totalBonus)}</b> <a href="javascript:void(0)" onclick="App.openBonusBreakdownModal()" style="color: var(--pastel-green-text); font-weight: 700; text-decoration: underline;">[Rincian]</a>`;
     }
 
     // === Update Visual Struk Live Preview ===
@@ -1521,7 +1660,13 @@ const App = {
     const totalIncome = filteredIncome.reduce((sum, i) => sum + Number(i.amount || 0), 0);
     const totalPorsi = filteredIncome.reduce((sum, i) => sum + Number(i.porsi || 0), 0);
     const totalExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const netProfit = totalIncome - totalExpenses;
+
+    // Potongan Bonus Insentif Kru (10% > Rp 300.000)
+    const outletBonusData = DB.calculateMonthlyOutletBonus(month);
+    const totalBonusPool = outletBonusData.totalBonusPool || 0;
+
+    // Laba Bersih Bersih Outlet
+    const netProfit = totalIncome - totalExpenses - totalBonusPool;
     const marginPct = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0;
 
     // Update Report Summary Cards
@@ -1536,6 +1681,12 @@ const App = {
 
     const elExpTx = document.getElementById('reportExpenseTxCount');
     if (elExpTx) elExpTx.textContent = `${filteredExpenses.length} Nota Belanja`;
+
+    const elBonus = document.getElementById('reportTotalBonus');
+    if (elBonus) elBonus.textContent = this.formatRupiah(totalBonusPool);
+
+    const elBonusDays = document.getElementById('reportBonusDaysCount');
+    if (elBonusDays) elBonusDays.textContent = `${outletBonusData.qualifiedDays} Hari Tembus Target (> 300rb)`;
 
     const elNet = document.getElementById('reportNetProfit');
     if (elNet) elNet.textContent = this.formatRupiah(netProfit);
@@ -1626,6 +1777,9 @@ const App = {
     const modal = document.getElementById(modalId);
     if (modal) {
       modal.classList.add('show');
+      if (modalId === 'modalIncome') {
+        this.updateIncomeModalLivePreview();
+      }
       if (window.lucide) lucide.createIcons();
     }
   },

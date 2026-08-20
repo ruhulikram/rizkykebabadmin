@@ -35,7 +35,10 @@ const XLSXExport = {
     const totalIncome = filteredIncome.reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const totalPorsi = filteredIncome.reduce((sum, item) => sum + Number(item.porsi || 0), 0);
     const totalExpenses = filteredExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const netProfit = totalIncome - totalExpenses;
+
+    const bonusData = DB.calculateMonthlyOutletBonus(options.periodMonth || '');
+    const totalBonus = bonusData.totalBonusPool || 0;
+    const netProfit = totalIncome - totalExpenses - totalBonus;
 
     // Breakdown Pengeluaran per Kategori
     const categoryTotals = {};
@@ -57,9 +60,10 @@ const XLSXExport = {
       ['Pemilik / Penanggung Jawab:', settings.ownerName || 'Rizki Pratama'],
       [],
       ['RINGKASAN UTAMA', 'JUMLAH (IDR)', 'KETERANGAN'],
-      ['Total Pemasukan (Omzet)', totalIncome, `${totalPorsi} Porsi Kebab Terjual`],
-      ['Total Pengeluaran Operasional', totalExpenses, `${filteredExpenses.length} Transaksi Belanja`],
-      ['ESTIMASI LABA BERSIH (NET PROFIT)', netProfit, netProfit >= 0 ? 'Surplus / Profit' : 'Defisit'],
+      ['Total Pemasukan (Omzet Kotor)', totalIncome, `${totalPorsi} Porsi Kebab Terjual`],
+      ['Total Pengeluaran Belanja Operasional', totalExpenses, `${filteredExpenses.length} Transaksi Belanja`],
+      ['Total Bonus Insentif Kru (10% > Target Rp 300rb)', totalBonus, `${bonusData.qualifiedDays} Hari Tembus Target`],
+      ['ESTIMASI LABA BERSIH (NET PROFIT)', netProfit, netProfit >= 0 ? 'Surplus / Profit Bersih' : 'Defisit'],
       [],
       ['RINCIAN PENGELUARAN PER KATEGORI', 'JUMLAH (IDR)', 'PERSENTASE (%)'],
     ];

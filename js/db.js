@@ -343,6 +343,47 @@ const DB = {
       totalOutletBonusPool,
       dayDetails
     };
+  },
+
+  /**
+   * Helper Hitung Total Bonus Insentif Outlet di Suatu Bulan (10% dari kelebihan omzet > target harian)
+   */
+  calculateMonthlyOutletBonus(periodMonth) {
+    const settings = this.get(DB_KEYS.SETTINGS);
+    const dailyTarget = Number(settings.dailyTarget || 300000);
+    const incentivePercent = Number(settings.incentivePercent || 10);
+    const incentiveRate = incentivePercent / 100;
+
+    const allIncome = this.get(DB_KEYS.INCOME) || [];
+    const monthIncome = allIncome.filter(i => i.date && i.date.startsWith(periodMonth));
+
+    const dailyIncomeMap = {};
+    monthIncome.forEach(inc => {
+      dailyIncomeMap[inc.date] = (dailyIncomeMap[inc.date] || 0) + Number(inc.amount || 0);
+    });
+
+    let totalBonusPool = 0;
+    let totalSurplus = 0;
+    let qualifiedDays = 0;
+
+    Object.keys(dailyIncomeMap).forEach(date => {
+      const dayOmzet = dailyIncomeMap[date];
+      if (dayOmzet > dailyTarget) {
+        const surplus = dayOmzet - dailyTarget;
+        const pool = surplus * incentiveRate;
+        totalSurplus += surplus;
+        totalBonusPool += pool;
+        qualifiedDays++;
+      }
+    });
+
+    return {
+      totalBonusPool: Math.round(totalBonusPool),
+      totalSurplus: Math.round(totalSurplus),
+      qualifiedDays,
+      dailyTarget,
+      incentivePercent
+    };
   }
 };
 
