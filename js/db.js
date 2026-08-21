@@ -221,6 +221,55 @@ const DB = {
   },
 
   /**
+   * Helper Hapus Data Kehadiran per ID
+   */
+  deleteAttendance(id) {
+    return this.remove(DB_KEYS.ATTENDANCE, id);
+  },
+
+  /**
+   * Helper Hapus Semua Data Kehadiran pada Tanggal Tertentu (format: 'YYYY-MM-DD')
+   */
+  deleteAttendanceByDate(date) {
+    const all = this.get(DB_KEYS.ATTENDANCE);
+    const filtered = all.filter(a => a.date !== date);
+    this.set(DB_KEYS.ATTENDANCE, filtered);
+    return true;
+  },
+
+  /**
+   * Helper Hapus Semua Data Kehadiran pada Bulan Tertentu (format: 'YYYY-MM')
+   */
+  deleteAttendanceByMonth(periodMonth) {
+    const all = this.get(DB_KEYS.ATTENDANCE);
+    const filtered = all.filter(a => !(a.date && a.date.startsWith(periodMonth)));
+    this.set(DB_KEYS.ATTENDANCE, filtered);
+    return true;
+  },
+
+  /**
+   * Helper Hapus Data Kehadiran Karyawan Tertentu (Bisa dibatasi per bulan)
+   */
+  deleteEmployeeAttendance(employeeId, periodMonth = null) {
+    const all = this.get(DB_KEYS.ATTENDANCE);
+    const filtered = all.filter(a => {
+      if (a.employeeId !== employeeId) return true;
+      if (periodMonth && a.date && !a.date.startsWith(periodMonth)) return true;
+      return false;
+    });
+    this.set(DB_KEYS.ATTENDANCE, filtered);
+    return true;
+  },
+
+  /**
+   * Helper Bersihkan Seluruh Data Kehadiran (Reset Kosong)
+   */
+  clearAttendanceData() {
+    this.set(DB_KEYS.ATTENDANCE, []);
+    return true;
+  },
+
+  /**
    * Helper Hitung Kehadiran Karyawan pada Periode Bulan (format: 'YYYY-MM')
    */
   getEmployeeAttendanceSummary(employeeId, periodMonth) {

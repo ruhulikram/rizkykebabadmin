@@ -343,10 +343,27 @@ const App = {
     if (attDatePicker) attDatePicker.addEventListener('change', () => this.renderAttendanceInput());
 
     const attMonthPicker = document.getElementById('attendanceMonthSummaryPicker');
-    if (attMonthPicker) attMonthPicker.addEventListener('change', () => this.renderAttendanceSummary());
+    if (attMonthPicker) {
+      attMonthPicker.addEventListener('change', () => {
+        this.renderAttendanceSummary();
+        this.renderAttendanceHistoryTable();
+      });
+    }
 
     const btnSaveAtt = document.getElementById('btnSaveAttendance');
     if (btnSaveAtt) btnSaveAtt.addEventListener('click', () => this.handleSaveAttendance());
+
+    const btnDeleteAttDate = document.getElementById('btnDeleteAttendanceByDate');
+    if (btnDeleteAttDate) btnDeleteAttDate.addEventListener('click', () => this.handleDeleteAttendanceByDate());
+
+    const btnResetMonthAtt = document.getElementById('btnResetMonthAttendance');
+    if (btnResetMonthAtt) btnResetMonthAtt.addEventListener('click', () => this.handleResetMonthAttendance());
+
+    const attHistEmpFilter = document.getElementById('attendanceHistoryEmployeeFilter');
+    if (attHistEmpFilter) attHistEmpFilter.addEventListener('change', () => this.renderAttendanceHistoryTable());
+
+    const attHistStatusFilter = document.getElementById('attendanceHistoryStatusFilter');
+    if (attHistStatusFilter) attHistStatusFilter.addEventListener('change', () => this.renderAttendanceHistoryTable());
 
     // Kalkulator Slip Gaji
     const slipEmpSelect = document.getElementById('slipEmployeeSelect');
@@ -424,12 +441,17 @@ const App = {
       restoreInput.addEventListener('change', (e) => this.handleRestoreFile(e));
     }
 
+    const btnResetAttOnly = document.getElementById('btnResetAttendanceOnly');
+    if (btnResetAttOnly) {
+      btnResetAttOnly.addEventListener('click', () => this.handleResetAttendanceOnly());
+    }
+
     const btnResetDemo = document.getElementById('btnResetDemo');
     if (btnResetDemo) {
       btnResetDemo.addEventListener('click', () => {
-        if (confirm('Apakah Anda yakin ingin mengosongkan seluruh data transaksi, pengeluaran, absensi, dan kasbon?')) {
+        if (confirm('Apakah Anda yakin ingin mengosongkan seluruh data transaksi penjualan, pengeluaran, absensi, dan kasbon?\n\nTindakan ini akan mengembalikan aplikasi ke kondisi bersih (fresh install).')) {
           DB.clearAllData();
-          this.toast('Seluruh data transaksi telah dikosongkan. Siap untuk pencatatan baru!', 'info');
+          this.toast('Seluruh database transaksi telah dikosongkan. Siap untuk pencatatan baru!', 'info');
           this.renderAll();
         }
       });
@@ -447,6 +469,7 @@ const App = {
     this.renderEmployeeTable();
     this.renderAttendanceInput();
     this.renderAttendanceSummary();
+    this.renderAttendanceHistoryTable();
     this.populateEmployeeDropdowns();
     this.updatePayrollCalculation();
     this.renderReportTab();
@@ -465,8 +488,10 @@ const App = {
     else if (tab === 'pengeluaran') this.renderExpenseTable();
     else if (tab === 'karyawan') this.renderEmployeeTable();
     else if (tab === 'kehadiran') {
+      this.populateEmployeeDropdowns();
       this.renderAttendanceInput();
       this.renderAttendanceSummary();
+      this.renderAttendanceHistoryTable();
     }
     else if (tab === 'slip-gaji') {
       this.populateEmployeeDropdowns();
@@ -1117,6 +1142,8 @@ const App = {
     this.closeModal('modalEmployee');
     this.renderEmployeeTable();
     this.renderAttendanceInput();
+    this.renderAttendanceSummary();
+    this.renderAttendanceHistoryTable();
     this.populateEmployeeDropdowns();
     this.updatePayrollCalculation();
   },
@@ -1143,6 +1170,8 @@ const App = {
       this.toast('Karyawan telah dihapus.', 'info');
       this.renderEmployeeTable();
       this.renderAttendanceInput();
+      this.renderAttendanceSummary();
+      this.renderAttendanceHistoryTable();
       this.populateEmployeeDropdowns();
     }
   },
@@ -1175,11 +1204,13 @@ const App = {
 
     const advanceSelect = document.getElementById('advanceEmployeeSelect');
     const slipSelect = document.getElementById('slipEmployeeSelect');
+    const attHistEmpFilter = document.getElementById('attendanceHistoryEmployeeFilter');
 
     if (!employees || employees.length === 0) {
       const emptyOpt = '<option value="">-- Belum ada data karyawan --</option>';
       if (advanceSelect) advanceSelect.innerHTML = emptyOpt;
       if (slipSelect) slipSelect.innerHTML = emptyOpt;
+      if (attHistEmpFilter) attHistEmpFilter.innerHTML = '<option value="">Semua Karyawan</option>';
       return;
     }
 
@@ -1193,11 +1224,16 @@ const App = {
         slipSelect.value = currentVal;
       }
     }
+
+    if (attHistEmpFilter) {
+      const currentVal = attHistEmpFilter.value;
+      attHistEmpFilter.innerHTML = '<option value="">Semua Karyawan</option>' + employees.map(emp => `<option value="${emp.id}">${emp.name}</option>`).join('');
+      if (currentVal && employees.some(e => e.id === currentVal)) {
+        attHistEmpFilter.value = currentVal;
+      }
+    }
   },
 
-  /**
-   * Render Input Absensi Harian
-   */
   /**
    * Render Input Absensi Harian
    */
@@ -1211,8 +1247,29 @@ const App = {
     const settings = DB.get(DB_KEYS.SETTINGS);
     const overtimeRate = Number(settings.overtimeRate || 70000);
 
+    const dateAtt = allAtt.filter(a => a.date === date);
+    const statusBadge = document.getElementById('attendanceDateStatusBadge');
+    const btnDeleteDate = document.getElementById('btnDeleteAttendanceByDate');
+
+    if (statusBadge) {
+      if (dateAtt.length > 0) {
+        statusBadge.innerHTML = `<span class="badge badge-hadir" style="font-size: 0.74rem;"><i data-lucide="check-circle-2" style="width: 12px; height: 12px;"></i> Sudah Tercatat (${dateAtt.length} Kru)</span>`;
+      } else {
+        statusBadge.innerHTML = `<span class="badge badge-libur" style="font-size: 0.74rem;">Belum Dicatat</span>`;
+      }
+    }
+
+    if (btnDeleteDate) {
+      if (dateAtt.length > 0) {
+        btnDeleteDate.style.display = 'inline-flex';
+      } else {
+        btnDeleteDate.style.display = 'none';
+      }
+    }
+
     if (employees.length === 0) {
       body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 18px;">Belum ada karyawan aktif. Tambahkan karyawan di menu Data Karyawan.</td></tr>`;
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -1264,6 +1321,10 @@ const App = {
         </tr>
       `;
     }).join('');
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
   },
 
   /**
@@ -1295,8 +1356,130 @@ const App = {
     DB.set(DB_KEYS.ATTENDANCE, filtered);
     this.toast(`Absensi tanggal ${this.formatDateIndo(date)} berhasil disimpan!`, 'success');
 
+    this.renderAttendanceInput();
     this.renderAttendanceSummary();
+    this.renderAttendanceHistoryTable();
     this.updatePayrollCalculation(true);
+  },
+
+  /**
+   * Hapus Seluruh Absensi pada Tanggal Tertentu (Salah Input Tanggal)
+   */
+  handleDeleteAttendanceByDate() {
+    const date = document.getElementById('attendanceDatePicker')?.value;
+    if (!date) return;
+
+    const allAtt = DB.get(DB_KEYS.ATTENDANCE);
+    const existing = allAtt.filter(a => a.date === date);
+
+    if (existing.length === 0) {
+      this.toast(`Tidak ada data absensi yang tercatat pada tanggal ${this.formatDateIndo(date)}.`, 'warning');
+      return;
+    }
+
+    if (confirm(`Apakah Anda yakin ingin menghapus seluruh data absensi tanggal ${this.formatDateIndo(date)} (${existing.length} data kru)?\n\nData yang telah dihapus tidak dapat dipulihkan.`)) {
+      DB.deleteAttendanceByDate(date);
+      this.toast(`Data absensi tanggal ${this.formatDateIndo(date)} berhasil dihapus!`, 'success');
+
+      this.renderAttendanceInput();
+      this.renderAttendanceSummary();
+      this.renderAttendanceHistoryTable();
+      this.updatePayrollCalculation(true);
+    }
+  },
+
+  /**
+   * Hapus 1 Baris Absensi Spesifik dari Tabel Riwayat Log
+   */
+  deleteSingleAttendance(id) {
+    const allAtt = DB.get(DB_KEYS.ATTENDANCE);
+    const item = allAtt.find(a => a.id === id);
+    if (!item) return;
+
+    const emp = DB.getById(DB_KEYS.EMPLOYEES, item.employeeId);
+    const empName = emp ? emp.name : 'Karyawan';
+
+    if (confirm(`Hapus catatan absensi:\n• Karyawan: ${empName}\n• Tanggal: ${this.formatDateIndo(item.date)}\n• Status: ${item.status.toUpperCase()}?`)) {
+      DB.deleteAttendance(id);
+      this.toast(`Absensi ${empName} tanggal ${this.formatDateIndo(item.date)} berhasil dihapus.`, 'info');
+
+      this.renderAttendanceInput();
+      this.renderAttendanceSummary();
+      this.renderAttendanceHistoryTable();
+      this.updatePayrollCalculation(true);
+    }
+  },
+
+  /**
+   * Hapus Seluruh Absensi Karyawan pada Bulan Terpilih di Rekapitulasi
+   */
+  deleteEmployeeMonthAttendance(employeeId) {
+    const month = document.getElementById('attendanceMonthSummaryPicker')?.value || '2026-08';
+    const emp = DB.getById(DB_KEYS.EMPLOYEES, employeeId);
+    const empName = emp ? emp.name : 'Karyawan';
+
+    const allAtt = DB.get(DB_KEYS.ATTENDANCE);
+    const count = allAtt.filter(a => a.employeeId === employeeId && a.date && a.date.startsWith(month)).length;
+
+    if (count === 0) {
+      this.toast(`Tidak ada data absensi untuk ${empName} pada periode ${this.formatMonthIndo(month)}.`, 'warning');
+      return;
+    }
+
+    if (confirm(`Apakah Anda yakin ingin menghapus SEMUA (${count}) data absensi ${empName} pada bulan ${this.formatMonthIndo(month)}?`)) {
+      DB.deleteEmployeeAttendance(employeeId, month);
+      this.toast(`Seluruh absensi ${empName} periode ${this.formatMonthIndo(month)} telah dihapus!`, 'success');
+
+      this.renderAttendanceInput();
+      this.renderAttendanceSummary();
+      this.renderAttendanceHistoryTable();
+      this.updatePayrollCalculation(true);
+    }
+  },
+
+  /**
+   * Reset / Hapus Seluruh Absensi pada Bulan Terpilih
+   */
+  handleResetMonthAttendance() {
+    const month = document.getElementById('attendanceMonthSummaryPicker')?.value || '2026-08';
+    const allAtt = DB.get(DB_KEYS.ATTENDANCE);
+    const count = allAtt.filter(a => a.date && a.date.startsWith(month)).length;
+
+    if (count === 0) {
+      this.toast(`Tidak ada data absensi pada periode ${this.formatMonthIndo(month)}.`, 'warning');
+      return;
+    }
+
+    if (confirm(`⚠️ PERINGATAN:\nApakah Anda yakin ingin MENGHAPUS SEMUA (${count}) data absensi seluruh karyawan pada bulan ${this.formatMonthIndo(month)}?\n\nSemua rekap kehadiran bulan ini akan di-reset ke 0.`)) {
+      DB.deleteAttendanceByMonth(month);
+      this.toast(`Seluruh data absensi periode ${this.formatMonthIndo(month)} telah dikosongkan.`, 'success');
+
+      this.renderAttendanceInput();
+      this.renderAttendanceSummary();
+      this.renderAttendanceHistoryTable();
+      this.updatePayrollCalculation(true);
+    }
+  },
+
+  /**
+   * Reset Seluruh Database Kehadiran (Melalui Menu Pengaturan)
+   */
+  handleResetAttendanceOnly() {
+    const allAtt = DB.get(DB_KEYS.ATTENDANCE);
+    if (allAtt.length === 0) {
+      this.toast('Data absensi sudah kosong.', 'info');
+      return;
+    }
+
+    if (confirm(`⚠️ KONFIRMASI PEMBERSIHAN DATA ABSENSI:\n\nApakah Anda yakin ingin menghapus seluruh data absensi (${allAtt.length} rekaman)?\n\nCatatan: Data transaksi penjualan, pengeluaran & data karyawan TIDAK akan terhapus.`)) {
+      DB.clearAttendanceData();
+      this.toast('Seluruh database kehadiran karyawan berhasil dikosongkan!', 'success');
+
+      this.renderAttendanceInput();
+      this.renderAttendanceSummary();
+      this.renderAttendanceHistoryTable();
+      this.updatePayrollCalculation(true);
+    }
   },
 
   /**
@@ -1312,13 +1495,18 @@ const App = {
     const overtimeRate = Number(settings.overtimeRate || 70000);
 
     if (employees.length === 0) {
-      body.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 18px;">Belum ada data karyawan.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 18px;">Belum ada data karyawan. Tambahkan karyawan di menu Data Karyawan.</td></tr>`;
       return;
     }
 
     body.innerHTML = employees.map(emp => {
       const sum = DB.getEmployeeAttendanceSummary(emp.id, month);
       const totalLemburPay = sum.lembur * overtimeRate;
+
+      const hasData = sum.totalHari > 0;
+      const deleteActionBtn = hasData
+        ? `<button type="button" class="btn btn-secondary btn-sm" style="color: #e11d48; border-color: #fecdd3; padding: 3px 8px; font-size: 0.72rem;" onclick="App.deleteEmployeeMonthAttendance('${emp.id}')" title="Hapus semua absensi ${emp.name} pada bulan ini"><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Hapus Rekap</button>`
+        : `<span style="color: var(--text-dim); font-size: 0.75rem;">-</span>`;
 
       return `
         <tr>
@@ -1334,9 +1522,90 @@ const App = {
           <td><span class="badge badge-alpha">${sum.alpha} Hari</span></td>
           <td><span class="badge badge-libur">${sum.libur} Hari</span></td>
           <td style="font-weight: 700; color: var(--pastel-green-text);">${sum.hadir} Hari Kerja</td>
+          <td style="text-align: center;">${deleteActionBtn}</td>
         </tr>
       `;
     }).join('');
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  },
+
+  /**
+   * Render Tabel Riwayat & Log Kehadiran Detail (Bulan Terpilih)
+   */
+  renderAttendanceHistoryTable() {
+    const body = document.getElementById('attendanceHistoryTableBody');
+    if (!body) return;
+
+    const month = document.getElementById('attendanceMonthSummaryPicker')?.value || '2026-08';
+    const empFilter = document.getElementById('attendanceHistoryEmployeeFilter')?.value || '';
+    const statusFilter = document.getElementById('attendanceHistoryStatusFilter')?.value || '';
+
+    const allAtt = DB.get(DB_KEYS.ATTENDANCE) || [];
+    const allEmployees = DB.get(DB_KEYS.EMPLOYEES) || [];
+    const empMap = {};
+    allEmployees.forEach(e => { empMap[e.id] = e; });
+
+    let filtered = allAtt.filter(a => a.date && a.date.startsWith(month));
+
+    if (empFilter) {
+      filtered = filtered.filter(a => a.employeeId === empFilter);
+    }
+    if (statusFilter) {
+      if (statusFilter === 'lembur') {
+        filtered = filtered.filter(a => a.isOvertime === true || a.isOvertime === 'true' || a.status === 'lembur');
+      } else {
+        filtered = filtered.filter(a => a.status === statusFilter);
+      }
+    }
+
+    // Urutkan tanggal terbaru paling atas
+    filtered.sort((a, b) => b.date.localeCompare(a.date));
+
+    if (filtered.length === 0) {
+      body.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 18px;">Belum ada riwayat absensi pada bulan ${this.formatMonthIndo(month)}.</td></tr>`;
+      return;
+    }
+
+    const badgeClass = {
+      hadir: 'badge-hadir',
+      izin: 'badge-izin',
+      sakit: 'badge-sakit',
+      alpha: 'badge-alpha',
+      libur: 'badge-libur'
+    };
+
+    body.innerHTML = filtered.map(item => {
+      const emp = empMap[item.employeeId] || { name: 'Karyawan', role: '-' };
+      const isOvertime = item.isOvertime === true || item.isOvertime === 'true' || item.status === 'lembur';
+      const bClass = badgeClass[item.status] || 'badge-hadir';
+
+      return `
+        <tr>
+          <td style="white-space: nowrap; font-weight: 600;">${this.formatDateIndo(item.date)}</td>
+          <td><b>${emp.name}</b></td>
+          <td style="color: var(--text-muted); font-size: 0.82rem;">${emp.role}</td>
+          <td><span class="badge ${bClass}">${item.status.toUpperCase()}</span></td>
+          <td>
+            ${isOvertime 
+              ? `<span class="badge" style="background: var(--pastel-amber-bg); color: var(--pastel-amber-text); font-weight: 700;">⚡ Lembur (+Rp 70.000)</span>` 
+              : `<span style="color: var(--text-dim); font-size: 0.78rem;">-</span>`}
+          </td>
+          <td class="cell-wrap" style="color: var(--text-muted); font-size: 0.82rem;">${item.note || '-'}</td>
+          <td style="text-align: center;">
+            <button type="button" class="btn btn-icon btn-sm" style="color: #e11d48;" title="Hapus absensi ${emp.name} tanggal ${this.formatDateIndo(item.date)}" onclick="App.deleteSingleAttendance('${item.id}')">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
   },
 
   /**

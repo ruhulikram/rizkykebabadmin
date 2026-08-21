@@ -8,10 +8,28 @@
   <meta name="description"
     content="Aplikasi kasir, pencatatan omzet harian, pengeluaran bahan baku, absensi karyawan, dan generator slip gaji PDF untuk outlet Kebab Rizki.">
 
-  <!-- Favicon (Logo Tab Browser) -->
+  <!-- Favicon & Web App Icons (Browser Tab & Mobile Home Screen) -->
   <link rel="icon" type="image/svg+xml" href="images/logo-kebab.svg">
-  <link rel="alternate icon" href="images/logo-kebab.svg">
-  <link rel="apple-touch-icon" href="images/logo-kebab.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="images/icon-512.png">
+  
+  <!-- Apple iOS Touch Icon (Homescreen iPhone/iPad) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Kebab Rizki">
+
+  <!-- Web App Manifest (Android Chrome Add to Home Screen / PWA) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#d97706">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- Open Graph / Link Share Preview (WhatsApp, Medsos) -->
+  <meta property="og:title" content="Kebab Rizki - Manajemen Keuangan & Operasional">
+  <meta property="og:description" content="Aplikasi kasir, pencatatan omzet harian, pengeluaran bahan baku, absensi karyawan, dan slip gaji.">
+  <meta property="og:image" content="images/logo-kebab.png">
+  <meta property="og:type" content="website">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -435,7 +453,8 @@
                 <p class="card-subtitle">Pilih tanggal dan centang kehadiran (otomatis mengkalkulasi total gaji pada
                   slip gaji)</p>
               </div>
-              <div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span id="attendanceDateStatusBadge"></span>
                 <input type="date" class="form-control" id="attendanceDatePicker" value="2026-08-19">
               </div>
             </div>
@@ -456,22 +475,32 @@
                 </tbody>
               </table>
             </div>
-            <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
-              <button class="btn btn-success" id="btnSaveAttendance">
-                <i data-lucide="check"></i> Simpan Status Kehadiran
+            <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <button type="button" class="btn btn-danger" id="btnDeleteAttendanceByDate" style="display: none;">
+                <i data-lucide="trash-2"></i> Hapus Absensi Tanggal Ini
               </button>
+              <div style="margin-left: auto;">
+                <button type="button" class="btn btn-success" id="btnSaveAttendance">
+                  <i data-lucide="check"></i> Simpan Status Kehadiran
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- Rekapitulasi Bulanan -->
-          <div class="card">
+          <div class="card" style="margin-bottom: 20px;">
             <div class="card-header">
               <div class="card-title">
                 <i data-lucide="calendar" style="width: 17px; height: 17px; color: var(--text-main);"></i>
                 <span>Rekap Kehadiran Karyawan Bulan Ini</span>
               </div>
-              <input type="month" class="form-control" id="attendanceMonthSummaryPicker" value="2026-08"
-                style="width: 170px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnResetMonthAttendance" style="color: #be123c; border-color: #fecdd3;" title="Kosongkan seluruh absensi pada bulan terpilih">
+                  <i data-lucide="trash-2"></i> Reset Absensi Bulan Ini
+                </button>
+                <input type="month" class="form-control" id="attendanceMonthSummaryPicker" value="2026-08"
+                  style="width: 170px;">
+              </div>
             </div>
             <div class="table-responsive">
               <table class="custom-table">
@@ -485,9 +514,53 @@
                     <th>Alpha</th>
                     <th>Libur</th>
                     <th>Total Hari Kerja</th>
+                    <th style="text-align: center;">Aksi</th>
                   </tr>
                 </thead>
                 <tbody id="attendanceSummaryTableBody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Riwayat & Log Absensi Harian -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i data-lucide="list-checks" style="width: 17px; height: 17px; color: var(--text-main);"></i>
+                <span>Riwayat & Log Kehadiran Detail</span>
+              </div>
+              <div class="filter-controls">
+                <select class="form-control" id="attendanceHistoryEmployeeFilter" style="width: auto; font-size: 0.82rem; padding: 6px 10px;">
+                  <option value="">Semua Karyawan</option>
+                  <!-- Injected via JS -->
+                </select>
+                <select class="form-control" id="attendanceHistoryStatusFilter" style="width: auto; font-size: 0.82rem; padding: 6px 10px;">
+                  <option value="">Semua Status</option>
+                  <option value="hadir">Hadir</option>
+                  <option value="lembur">Lembur</option>
+                  <option value="izin">Izin</option>
+                  <option value="sakit">Sakit</option>
+                  <option value="alpha">Alpha</option>
+                  <option value="libur">Libur</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Tanggal</th>
+                    <th>Nama Karyawan</th>
+                    <th>Posisi</th>
+                    <th>Status Kehadiran</th>
+                    <th>Lembur</th>
+                    <th>Catatan / Keterangan</th>
+                    <th style="text-align: center;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceHistoryTableBody">
                   <!-- Injected via JS -->
                 </tbody>
               </table>
@@ -934,12 +1007,19 @@
               </div>
 
               <!-- Reset Bersih -->
-              <div style="border-top: 1px dashed var(--border-color); padding-top: 12px;">
-                <button class="btn btn-danger btn-sm" id="btnResetDemo">
-                  <i data-lucide="trash-2"></i> Kosongkan / Reset Semua Data Transaksi
-                </button>
-                <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 6px;">Menghapus seluruh transaksi,
-                  pengeluaran, absensi & kasbon untuk memulai catatan baru dari awal.</p>
+              <div style="border-top: 1px dashed var(--border-color); padding-top: 12px; display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                  <button class="btn btn-secondary btn-sm" id="btnResetAttendanceOnly" style="color: #be123c; border-color: #fecdd3;">
+                    <i data-lucide="calendar-x"></i> Kosongkan Data Absensi Saja
+                  </button>
+                  <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 4px;">Menghapus seluruh rekaman absensi kehadiran karyawan tanpa mengubah catatan transaksi keuangan & kasbon.</p>
+                </div>
+                <div>
+                  <button class="btn btn-danger btn-sm" id="btnResetDemo">
+                    <i data-lucide="trash-2"></i> Kosongkan / Reset Semua Data Transaksi
+                  </button>
+                  <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 4px;">Menghapus seluruh transaksi, pengeluaran, absensi & kasbon untuk memulai catatan baru dari awal.</p>
+                </div>
               </div>
             </div>
           </div>
