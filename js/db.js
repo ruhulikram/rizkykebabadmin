@@ -46,23 +46,31 @@ const DB = {
 
   /**
    * Inisialisasi Database.
-   * Memeriksa backend SQLite dan menyiapkan cache data.
+   * Memeriksa penyimpanan lokal dan menyinkronkan dengan backend SQLite jika online.
    */
   async init() {
     try {
-      const hasSettings = localStorage.getItem(DB_KEYS.SETTINGS);
-      const existingIncome = this.get(DB_KEYS.INCOME);
-      const existingEmployees = this.get(DB_KEYS.EMPLOYEES);
-
-      // Deteksi jika masih menyimpan data dummy lama dari versi demo awal
-      const hasDummyData = existingIncome.some(i => i.id === 'inc-01' || i.id === 'inc-14') ||
-                           existingEmployees.some(e => e.id === 'emp-1' && e.name === 'Bajay Kurniawan');
-
-      if (!hasSettings || hasDummyData) {
-        this.clearAllData();
+      // Pastikan struktur penyimpanan ada tanpa mereset data pengguna yang sudah ada
+      if (!localStorage.getItem(DB_KEYS.SETTINGS)) {
+        this.set(DB_KEYS.SETTINGS, DEFAULT_SETTINGS, false);
+      }
+      if (!localStorage.getItem(DB_KEYS.EMPLOYEES)) {
+        this.set(DB_KEYS.EMPLOYEES, [], false);
+      }
+      if (!localStorage.getItem(DB_KEYS.INCOME)) {
+        this.set(DB_KEYS.INCOME, [], false);
+      }
+      if (!localStorage.getItem(DB_KEYS.EXPENSES)) {
+        this.set(DB_KEYS.EXPENSES, [], false);
+      }
+      if (!localStorage.getItem(DB_KEYS.ATTENDANCE)) {
+        this.set(DB_KEYS.ATTENDANCE, [], false);
+      }
+      if (!localStorage.getItem(DB_KEYS.ADVANCES)) {
+        this.set(DB_KEYS.ADVANCES, [], false);
       }
 
-      // Hubungkan ke server SQLite backend secara asinkron
+      // Hubungkan ke server SQLite backend secara asinkron (jika backend aktif)
       await this.checkBackendAndSync();
     } catch (e) {
       console.error('Database init error:', e);
@@ -80,7 +88,7 @@ const DB = {
         if (json.success) {
           this.isBackendConnected = true;
           this.updateConnectionUI(true, json.engine);
-          await this.pullFromSQLite();
+          await this.pullFromSQLite(json);
           return true;
         }
       }
@@ -105,17 +113,36 @@ const DB = {
       } else {
         badge.className = 'db-status-badge offline';
         badge.innerHTML = `<span class="pulse-dot offline"></span> <span>Database: <strong>LocalStorage</strong></span>`;
-        badge.title = 'Berjalan dalam mode offline / cache browser. Jalankan server.js untuk menggunakan database SQLite.';
+        badge.title = 'Berjalan dalam mode offline / cache browser. Data tersimpan aman di perangkat ini.';
       }
     }
   },
 
   /**
-   * Mengambil seluruh data terbaru dari server SQLite ke local cache
+   * Mengambil data terbaru dari SQLite server atau mengunggah data lokal jika server kosong
    */
-  async pullFromSQLite() {
+  async pullFromSQLite(statusData = null) {
     if (!this.isBackendConnected) return;
     try {
+      const statusRes = statusData || await fetch(`${this.apiBaseUrl}/api/status`).then(r => r.json()).catch(() => null);
+      
+      const localTotal = (this.get(DB_KEYS.INCOME).length) +
+                         (this.get(DB_KEYS.EXPENSES).length) +
+                         (this.get(DB_KEYS.EMPLOYEES).length) +
+                         (this.get(DB_KEYS.ATTENDANCE).length) +
+                         (this.get(DB_KEYS.ADVANCES).length);
+
+      const serverTotal = (statusRes && statusRes.totalRecords) ? (statusRes.totalRecords - (statusRes.tableCounts?.settings || 1)) : 0;
+
+      // Jika server SQLite masih kosong tapi di localStorage browser sudah ada data (misal baru restore JSON)
+      // Maka otomatis unggah data lokal ke SQLite server agar data lokal tidak tertimpa kosong!
+      if (serverTotal === 0 && localTotal > 0) {
+        console.log('📤 Mengunggah data lokal ke SQLite server...');
+        await this.pushToSQLite();
+        return;
+      }
+
+      // Jika server memiliki data, tarik dari SQLite server
       const [settingsRes, empRes, incRes, expRes, attRes, advRes] = await Promise.all([
         fetch(`${this.apiBaseUrl}/api/settings`).then(r => r.json()).catch(() => null),
         fetch(`${this.apiBaseUrl}/api/employees`).then(r => r.json()).catch(() => null),
@@ -126,15 +153,44 @@ const DB = {
       ]);
 
       if (settingsRes && settingsRes.data) this.set(DB_KEYS.SETTINGS, settingsRes.data, false);
-      if (empRes && empRes.data) this.set(DB_KEYS.EMPLOYEES, empRes.data, false);
-      if (incRes && incRes.data) this.set(DB_KEYS.INCOME, incRes.data, false);
-      if (expRes && expRes.data) this.set(DB_KEYS.EXPENSES, expRes.data, false);
-      if (attRes && attRes.data) this.set(DB_KEYS.ATTENDANCE, attRes.data, false);
-      if (advRes && advRes.data) this.set(DB_KEYS.ADVANCES, advRes.data, false);
+      if (empRes && Array.isArray(empRes.data) && empRes.data.length > 0) this.set(DB_KEYS.EMPLOYEES, empRes.data, false);
+      if (incRes && Array.isArray(incRes.data) && incRes.data.length > 0) this.set(DB_KEYS.INCOME, incRes.data, false);
+      if (expRes && Array.isArray(expRes.data) && expRes.data.length > 0) this.set(DB_KEYS.EXPENSES, expRes.data, false);
+      if (attRes && Array.isArray(attRes.data) && attRes.data.length > 0) this.set(DB_KEYS.ATTENDANCE, attRes.data, false);
+      if (advRes && Array.isArray(advRes.data) && advRes.data.length > 0) this.set(DB_KEYS.ADVANCES, advRes.data, false);
 
       console.log('🔄 Data berhasil disinkronkan dari SQLite Backend');
     } catch (e) {
       console.warn('Gagal sinkronisasi data dari SQLite:', e);
+    }
+  },
+
+  /**
+   * Mengunggah seluruh data lokal saat ini ke SQLite backend
+   */
+  async pushToSQLite() {
+    if (!this.isBackendConnected) return;
+    try {
+      const payload = {
+        version: '2.0.0',
+        data: {
+          settings: this.get(DB_KEYS.SETTINGS),
+          employees: this.get(DB_KEYS.EMPLOYEES),
+          income: this.get(DB_KEYS.INCOME),
+          expenses: this.get(DB_KEYS.EXPENSES),
+          attendance: this.get(DB_KEYS.ATTENDANCE),
+          advances: this.get(DB_KEYS.ADVANCES)
+        }
+      };
+
+      const res = await fetch(`${this.apiBaseUrl}/api/db/import-json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (e) {
+      console.error('Gagal push ke SQLite:', e);
     }
   },
 
@@ -352,12 +408,12 @@ const DB = {
         throw new Error('Format file backup tidak valid! Objek data tidak ditemukan.');
       }
 
-      if (parsed.data.settings) this.set(DB_KEYS.SETTINGS, parsed.data.settings);
-      if (parsed.data.employees) this.set(DB_KEYS.EMPLOYEES, parsed.data.employees);
-      if (parsed.data.income) this.set(DB_KEYS.INCOME, parsed.data.income);
-      if (parsed.data.expenses) this.set(DB_KEYS.EXPENSES, parsed.data.expenses);
-      if (parsed.data.attendance) this.set(DB_KEYS.ATTENDANCE, parsed.data.attendance);
-      if (parsed.data.advances) this.set(DB_KEYS.ADVANCES, parsed.data.advances);
+      if (parsed.data.settings) this.set(DB_KEYS.SETTINGS, parsed.data.settings, false);
+      if (parsed.data.employees) this.set(DB_KEYS.EMPLOYEES, parsed.data.employees, false);
+      if (parsed.data.income) this.set(DB_KEYS.INCOME, parsed.data.income, false);
+      if (parsed.data.expenses) this.set(DB_KEYS.EXPENSES, parsed.data.expenses, false);
+      if (parsed.data.attendance) this.set(DB_KEYS.ATTENDANCE, parsed.data.attendance, false);
+      if (parsed.data.advances) this.set(DB_KEYS.ADVANCES, parsed.data.advances, false);
 
       if (this.isBackendConnected) {
         fetch(`${this.apiBaseUrl}/api/db/import-json`, {
@@ -367,7 +423,7 @@ const DB = {
         }).catch(console.error);
       }
 
-      return { success: true, message: 'Data berhasil dipulihkan 100%!' };
+      return { success: true, message: 'Data berhasil dipulihkan 100% dan tersimpan permanen!' };
     } catch (e) {
       console.error('Gagal restore data:', e);
       return { success: false, message: e.message || 'File JSON rusak atau tidak kompatibel.' };
