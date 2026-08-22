@@ -144,17 +144,7 @@ const App = {
     const pageTitle = document.getElementById('pageTitle');
     const breadcrumbCurrent = document.getElementById('breadcrumbCurrent');
     const sidebar = document.getElementById('sidebar');
-
-    const tabDescriptions = {
-      'dashboard': { title: 'Dashboard Ringkasan', breadcrumb: 'Dashboard' },
-      'pemasukan': { title: 'Pemasukan & Penjualan Kasir', breadcrumb: 'Pemasukan' },
-      'pengeluaran': { title: 'Pengeluaran & Belanja Bahan', breadcrumb: 'Pengeluaran' },
-      'karyawan': { title: 'Manajemen Karyawan Outlet', breadcrumb: 'Data Karyawan' },
-      'kehadiran': { title: 'Absensi & Kehadiran Harian', breadcrumb: 'Kehadiran' },
-      'slip-gaji': { title: 'Slip Gaji (Export PDF)', breadcrumb: 'Slip Gaji' },
-      'laporan': { title: 'Laporan Keuangan & Rekap', breadcrumb: 'Laporan Excel' },
-      'settings': { title: 'Backup & Profil Outlet', breadcrumb: 'Pengaturan' }
-    };
+    const backdrop = document.getElementById('sidebarBackdrop');
 
     navItems.forEach(item => {
       item.addEventListener('click', () => {
@@ -174,19 +164,16 @@ const App = {
       });
     });
 
-    const backdrop = document.getElementById('sidebarBackdrop');
-
     const toggleMobileSidebar = (open) => {
       if (!sidebar) return;
-      const isOpen = open !== undefined ? open : !sidebar.classList.contains('mobile-open');
-      sidebar.classList.toggle('mobile-open', isOpen);
-      if (backdrop) backdrop.classList.toggle('active', isOpen);
+      const isOpen = open !== undefined ? open : !sidebar.classList.contains('open');
+      sidebar.classList.toggle('open', isOpen);
+      if (backdrop) backdrop.classList.toggle('show', isOpen);
     };
 
-    // Mobile Hamburger & Bottom Nav 'Menu' Toggle
-    const mobileBtn = document.getElementById('mobileToggleBtn');
-    if (mobileBtn) {
-      mobileBtn.addEventListener('click', () => toggleMobileSidebar());
+    const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+    if (sidebarToggleBtn) {
+      sidebarToggleBtn.addEventListener('click', () => toggleMobileSidebar());
     }
 
     const bottomNavMore = document.getElementById('bottomNavMoreBtn');
@@ -224,10 +211,14 @@ const App = {
       'kehadiran': { title: 'Absensi & Kehadiran Harian', breadcrumb: 'Kehadiran' },
       'slip-gaji': { title: 'Slip Gaji (Export PDF)', breadcrumb: 'Slip Gaji' },
       'laporan': { title: 'Laporan Keuangan & Rekap', breadcrumb: 'Laporan Excel' },
-      'settings': { title: 'Backup & Profil Outlet', breadcrumb: 'Pengaturan' }
+      'settings': { title: 'Pengaturan & Backup Profil', breadcrumb: 'Pengaturan' }
     };
 
     this.activeTab = targetTab;
+
+    // Tutup mobile drawer saat ganti tab
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('show');
 
     // Update desktop sidebar nav active class
     navItems.forEach(n => {
@@ -261,10 +252,6 @@ const App = {
       if (pageTitle) pageTitle.textContent = tabDescriptions[targetTab].title;
       if (breadcrumbCurrent) breadcrumbCurrent.textContent = tabDescriptions[targetTab].breadcrumb;
     }
-
-    // Close sidebar drawer on mobile
-    if (sidebar) sidebar.classList.remove('mobile-open');
-    if (backdrop) backdrop.classList.remove('active');
 
     // Scroll to top of content
     window.scrollTo({ top: 0, behavior: 'smooth' });

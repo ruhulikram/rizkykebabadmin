@@ -1,6 +1,6 @@
 /**
- * db.js - Unified Database Engine untuk Kebab Rizki (kebab-finance)
- * Mendukung penyimpanan Hybrid: SQLite 3 Backend API + LocalStorage Fast-Cache.
+ * db.js - LocalStorage Database Engine untuk Kebab Rizki (kebab-finance)
+ * Mengelola penyimpanan lokal yang aman, cepat, dan permanen di browser.
  */
 
 const DB_KEYS = {
@@ -26,196 +26,52 @@ const DEFAULT_SETTINGS = {
   logoEmoji: '🌯'
 };
 
-// Inisialisasi Data Bersih (Tanpa Dummy Data)
-function generateSeedData() {
-  return {
-    [DB_KEYS.SETTINGS]: DEFAULT_SETTINGS,
-    [DB_KEYS.EMPLOYEES]: [],
-    [DB_KEYS.INCOME]: [],
-    [DB_KEYS.EXPENSES]: [],
-    [DB_KEYS.ATTENDANCE]: [],
-    [DB_KEYS.ADVANCES]: []
-  };
-}
-
 const DB = {
-  isBackendConnected: false,
-  apiBaseUrl: (window.location.protocol.startsWith('http')) 
-    ? window.location.origin 
-    : 'http://localhost:3000',
-
   /**
-   * Inisialisasi Database.
-   * Memeriksa penyimpanan lokal dan menyinkronkan dengan backend SQLite jika online.
+   * Inisialisasi Database LocalStorage.
+   * Menjamin semua key tersedia tanpa pernah menghapus data pengguna yang sudah tersimpan.
    */
-  async init() {
+  init() {
     try {
-      // Pastikan struktur penyimpanan ada tanpa mereset data pengguna yang sudah ada
       if (!localStorage.getItem(DB_KEYS.SETTINGS)) {
-        this.set(DB_KEYS.SETTINGS, DEFAULT_SETTINGS, false);
+        this.set(DB_KEYS.SETTINGS, DEFAULT_SETTINGS);
       }
       if (!localStorage.getItem(DB_KEYS.EMPLOYEES)) {
-        this.set(DB_KEYS.EMPLOYEES, [], false);
+        this.set(DB_KEYS.EMPLOYEES, []);
       }
       if (!localStorage.getItem(DB_KEYS.INCOME)) {
-        this.set(DB_KEYS.INCOME, [], false);
+        this.set(DB_KEYS.INCOME, []);
       }
       if (!localStorage.getItem(DB_KEYS.EXPENSES)) {
-        this.set(DB_KEYS.EXPENSES, [], false);
+        this.set(DB_KEYS.EXPENSES, []);
       }
       if (!localStorage.getItem(DB_KEYS.ATTENDANCE)) {
-        this.set(DB_KEYS.ATTENDANCE, [], false);
+        this.set(DB_KEYS.ATTENDANCE, []);
       }
       if (!localStorage.getItem(DB_KEYS.ADVANCES)) {
-        this.set(DB_KEYS.ADVANCES, [], false);
-      }
-
-      // Hubungkan ke server SQLite backend secara asinkron (jika backend aktif)
-      await this.checkBackendAndSync();
-    } catch (e) {
-      console.error('Database init error:', e);
-    }
-  },
-
-  /**
-   * Periksa ketersediaan backend SQLite REST API dan sinkronkan data
-   */
-  async checkBackendAndSync() {
-    try {
-      const res = await fetch(`${this.apiBaseUrl}/api/status`, { cache: 'no-store' });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) {
-          this.isBackendConnected = true;
-          this.updateConnectionUI(true, json.engine);
-          await this.pullFromSQLite(json);
-          return true;
-        }
+        this.set(DB_KEYS.ADVANCES, []);
       }
     } catch (e) {
-      // Backend offline / mode standalone file
-      this.isBackendConnected = false;
-      this.updateConnectionUI(false);
-    }
-    return false;
-  },
-
-  /**
-   * Update indikator koneksi di antarmuka
-   */
-  updateConnectionUI(isConnected, engineName = 'SQLite 3') {
-    const badge = document.getElementById('dbStatusBadge');
-    if (badge) {
-      if (isConnected) {
-        badge.className = 'db-status-badge online';
-        badge.innerHTML = `<span class="pulse-dot"></span> <span>Database: <strong>${engineName} (Aktif)</strong></span>`;
-        badge.title = 'Terkoneksi ke database relasional SQLite file kebab_rizki.db';
-      } else {
-        badge.className = 'db-status-badge offline';
-        badge.innerHTML = `<span class="pulse-dot offline"></span> <span>Database: <strong>LocalStorage</strong></span>`;
-        badge.title = 'Berjalan dalam mode offline / cache browser. Data tersimpan aman di perangkat ini.';
-      }
+      console.error('LocalStorage tidak dapat diakses:', e);
     }
   },
 
   /**
-   * Mengambil data terbaru dari SQLite server atau mengunggah data lokal jika server kosong
-   */
-  async pullFromSQLite(statusData = null) {
-    if (!this.isBackendConnected) return;
-    try {
-      const statusRes = statusData || await fetch(`${this.apiBaseUrl}/api/status`).then(r => r.json()).catch(() => null);
-      
-      const localTotal = (this.get(DB_KEYS.INCOME).length) +
-                         (this.get(DB_KEYS.EXPENSES).length) +
-                         (this.get(DB_KEYS.EMPLOYEES).length) +
-                         (this.get(DB_KEYS.ATTENDANCE).length) +
-                         (this.get(DB_KEYS.ADVANCES).length);
-
-      const serverTotal = (statusRes && statusRes.totalRecords) ? (statusRes.totalRecords - (statusRes.tableCounts?.settings || 1)) : 0;
-
-      // Jika server SQLite masih kosong tapi di localStorage browser sudah ada data (misal baru restore JSON)
-      // Maka otomatis unggah data lokal ke SQLite server agar data lokal tidak tertimpa kosong!
-      if (serverTotal === 0 && localTotal > 0) {
-        console.log('📤 Mengunggah data lokal ke SQLite server...');
-        await this.pushToSQLite();
-        return;
-      }
-
-      // Jika server memiliki data, tarik dari SQLite server
-      const [settingsRes, empRes, incRes, expRes, attRes, advRes] = await Promise.all([
-        fetch(`${this.apiBaseUrl}/api/settings`).then(r => r.json()).catch(() => null),
-        fetch(`${this.apiBaseUrl}/api/employees`).then(r => r.json()).catch(() => null),
-        fetch(`${this.apiBaseUrl}/api/income`).then(r => r.json()).catch(() => null),
-        fetch(`${this.apiBaseUrl}/api/expenses`).then(r => r.json()).catch(() => null),
-        fetch(`${this.apiBaseUrl}/api/attendance`).then(r => r.json()).catch(() => null),
-        fetch(`${this.apiBaseUrl}/api/advances`).then(r => r.json()).catch(() => null)
-      ]);
-
-      if (settingsRes && settingsRes.data) this.set(DB_KEYS.SETTINGS, settingsRes.data, false);
-      if (empRes && Array.isArray(empRes.data) && empRes.data.length > 0) this.set(DB_KEYS.EMPLOYEES, empRes.data, false);
-      if (incRes && Array.isArray(incRes.data) && incRes.data.length > 0) this.set(DB_KEYS.INCOME, incRes.data, false);
-      if (expRes && Array.isArray(expRes.data) && expRes.data.length > 0) this.set(DB_KEYS.EXPENSES, expRes.data, false);
-      if (attRes && Array.isArray(attRes.data) && attRes.data.length > 0) this.set(DB_KEYS.ATTENDANCE, attRes.data, false);
-      if (advRes && Array.isArray(advRes.data) && advRes.data.length > 0) this.set(DB_KEYS.ADVANCES, advRes.data, false);
-
-      console.log('🔄 Data berhasil disinkronkan dari SQLite Backend');
-    } catch (e) {
-      console.warn('Gagal sinkronisasi data dari SQLite:', e);
-    }
-  },
-
-  /**
-   * Mengunggah seluruh data lokal saat ini ke SQLite backend
-   */
-  async pushToSQLite() {
-    if (!this.isBackendConnected) return;
-    try {
-      const payload = {
-        version: '2.0.0',
-        data: {
-          settings: this.get(DB_KEYS.SETTINGS),
-          employees: this.get(DB_KEYS.EMPLOYEES),
-          income: this.get(DB_KEYS.INCOME),
-          expenses: this.get(DB_KEYS.EXPENSES),
-          attendance: this.get(DB_KEYS.ATTENDANCE),
-          advances: this.get(DB_KEYS.ADVANCES)
-        }
-      };
-
-      const res = await fetch(`${this.apiBaseUrl}/api/db/import-json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      return await res.json();
-    } catch (e) {
-      console.error('Gagal push ke SQLite:', e);
-    }
-  },
-
-  /**
-   * Bersihkan semua data transaksi & karyawan (Reset Bersih)
+   * Bersihkan semua data transaksi & karyawan secara manual atas permintaan pengguna
    */
   clearAllData() {
-    const emptyState = generateSeedData();
-    Object.keys(emptyState).forEach(key => {
-      if (key === DB_KEYS.SETTINGS) {
-        const curr = this.get(DB_KEYS.SETTINGS);
-        this.set(key, (curr && curr.outletName) ? curr : DEFAULT_SETTINGS);
-      } else {
-        this.set(key, []);
-      }
-    });
-
-    if (this.isBackendConnected) {
-      fetch(`${this.apiBaseUrl}/api/db/reset`, { method: 'POST' }).catch(console.error);
-    }
+    const curr = this.get(DB_KEYS.SETTINGS);
+    this.set(DB_KEYS.SETTINGS, (curr && curr.outletName) ? curr : DEFAULT_SETTINGS);
+    this.set(DB_KEYS.EMPLOYEES, []);
+    this.set(DB_KEYS.INCOME, []);
+    this.set(DB_KEYS.EXPENSES, []);
+    this.set(DB_KEYS.ATTENDANCE, []);
+    this.set(DB_KEYS.ADVANCES, []);
     return true;
   },
 
   /**
-   * Mengambil data berdasarkan Key (Synchronous Fast Cache)
+   * Mengambil data berdasarkan Key
    */
   get(key) {
     try {
@@ -229,21 +85,11 @@ const DB = {
   },
 
   /**
-   * Menyimpan data langsung ke Key & kirim update ke SQLite jika online
+   * Menyimpan data langsung ke Key
    */
-  set(key, data, syncBackend = true) {
+  set(key, data) {
     try {
       localStorage.setItem(key, JSON.stringify(data));
-
-      if (syncBackend && this.isBackendConnected) {
-        if (key === DB_KEYS.SETTINGS) {
-          fetch(`${this.apiBaseUrl}/api/settings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-          }).catch(console.error);
-        }
-      }
       return true;
     } catch (e) {
       console.error(`Gagal menyimpan data ${key}:`, e);
@@ -271,27 +117,7 @@ const DB = {
       item.createdAt = new Date().toISOString();
     }
     list.unshift(item);
-    this.set(key, list, false);
-
-    // Sync ke SQLite backend API
-    if (this.isBackendConnected) {
-      const endpointMap = {
-        [DB_KEYS.EMPLOYEES]: '/api/employees',
-        [DB_KEYS.INCOME]: '/api/income',
-        [DB_KEYS.EXPENSES]: '/api/expenses',
-        [DB_KEYS.ATTENDANCE]: '/api/attendance',
-        [DB_KEYS.ADVANCES]: '/api/advances'
-      };
-      const endpoint = endpointMap[key];
-      if (endpoint) {
-        fetch(`${this.apiBaseUrl}${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(item)
-        }).catch(err => console.warn(`Gagal simpan ke SQLite (${endpoint}):`, err));
-      }
-    }
-
+    this.set(key, list);
     return item;
   },
 
@@ -303,25 +129,7 @@ const DB = {
     const index = list.findIndex(item => item.id === id);
     if (index !== -1) {
       list[index] = { ...list[index], ...updatedFields, updatedAt: new Date().toISOString() };
-      this.set(key, list, false);
-
-      // Sync ke SQLite backend API
-      if (this.isBackendConnected) {
-        const endpointMap = {
-          [DB_KEYS.EMPLOYEES]: `/api/employees/${id}`,
-          [DB_KEYS.INCOME]: `/api/income/${id}`,
-          [DB_KEYS.EXPENSES]: `/api/expenses/${id}`
-        };
-        const endpoint = endpointMap[key];
-        if (endpoint) {
-          fetch(`${this.apiBaseUrl}${endpoint}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedFields)
-          }).catch(err => console.warn(`Gagal update ke SQLite (${endpoint}):`, err));
-        }
-      }
-
+      this.set(key, list);
       return list[index];
     }
     return null;
@@ -333,24 +141,7 @@ const DB = {
   remove(key, id) {
     const list = this.get(key);
     const filtered = list.filter(item => item.id !== id);
-    this.set(key, filtered, false);
-
-    // Sync ke SQLite backend API
-    if (this.isBackendConnected) {
-      const endpointMap = {
-        [DB_KEYS.EMPLOYEES]: `/api/employees/${id}`,
-        [DB_KEYS.INCOME]: `/api/income/${id}`,
-        [DB_KEYS.EXPENSES]: `/api/expenses/${id}`,
-        [DB_KEYS.ATTENDANCE]: `/api/attendance/${id}`,
-        [DB_KEYS.ADVANCES]: `/api/advances/${id}`
-      };
-      const endpoint = endpointMap[key];
-      if (endpoint) {
-        fetch(`${this.apiBaseUrl}${endpoint}`, { method: 'DELETE' })
-          .catch(err => console.warn(`Gagal delete di SQLite (${endpoint}):`, err));
-      }
-    }
-
+    this.set(key, filtered);
     return true;
   },
 
@@ -367,9 +158,8 @@ const DB = {
    */
   backup() {
     const fullData = {
-      version: '2.0.0',
+      version: '2.1.0',
       appName: 'KebabRizkiFinance',
-      databaseEngine: this.isBackendConnected ? 'SQLite 3 (kebab_rizki.db)' : 'LocalStorage Cache',
       backupDate: new Date().toISOString(),
       data: {
         settings: this.get(DB_KEYS.SETTINGS),
@@ -408,37 +198,18 @@ const DB = {
         throw new Error('Format file backup tidak valid! Objek data tidak ditemukan.');
       }
 
-      if (parsed.data.settings) this.set(DB_KEYS.SETTINGS, parsed.data.settings, false);
-      if (parsed.data.employees) this.set(DB_KEYS.EMPLOYEES, parsed.data.employees, false);
-      if (parsed.data.income) this.set(DB_KEYS.INCOME, parsed.data.income, false);
-      if (parsed.data.expenses) this.set(DB_KEYS.EXPENSES, parsed.data.expenses, false);
-      if (parsed.data.attendance) this.set(DB_KEYS.ATTENDANCE, parsed.data.attendance, false);
-      if (parsed.data.advances) this.set(DB_KEYS.ADVANCES, parsed.data.advances, false);
-
-      if (this.isBackendConnected) {
-        fetch(`${this.apiBaseUrl}/api/db/import-json`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(parsed)
-        }).catch(console.error);
-      }
+      if (parsed.data.settings) this.set(DB_KEYS.SETTINGS, parsed.data.settings);
+      if (Array.isArray(parsed.data.employees)) this.set(DB_KEYS.EMPLOYEES, parsed.data.employees);
+      if (Array.isArray(parsed.data.income)) this.set(DB_KEYS.INCOME, parsed.data.income);
+      if (Array.isArray(parsed.data.expenses)) this.set(DB_KEYS.EXPENSES, parsed.data.expenses);
+      if (Array.isArray(parsed.data.attendance)) this.set(DB_KEYS.ATTENDANCE, parsed.data.attendance);
+      if (Array.isArray(parsed.data.advances)) this.set(DB_KEYS.ADVANCES, parsed.data.advances);
 
       return { success: true, message: 'Data berhasil dipulihkan 100% dan tersimpan permanen!' };
     } catch (e) {
       console.error('Gagal restore data:', e);
       return { success: false, message: e.message || 'File JSON rusak atau tidak kompatibel.' };
     }
-  },
-
-  /**
-   * Reset database kembali ke seed data demo
-   */
-  resetDemo() {
-    const seed = generateSeedData();
-    Object.keys(seed).forEach(key => {
-      this.set(key, seed[key]);
-    });
-    return true;
   },
 
   /**
@@ -455,10 +226,6 @@ const DB = {
     const all = this.get(DB_KEYS.ATTENDANCE);
     const filtered = all.filter(a => a.date !== date);
     this.set(DB_KEYS.ATTENDANCE, filtered);
-
-    if (this.isBackendConnected) {
-      fetch(`${this.apiBaseUrl}/api/attendance/by-date/${date}`, { method: 'DELETE' }).catch(console.error);
-    }
     return true;
   },
 
@@ -469,15 +236,11 @@ const DB = {
     const all = this.get(DB_KEYS.ATTENDANCE);
     const filtered = all.filter(a => !(a.date && a.date.startsWith(periodMonth)));
     this.set(DB_KEYS.ATTENDANCE, filtered);
-
-    if (this.isBackendConnected) {
-      fetch(`${this.apiBaseUrl}/api/attendance/by-month/${periodMonth}`, { method: 'DELETE' }).catch(console.error);
-    }
     return true;
   },
 
   /**
-   * Helper Hapus Data Kehadiran Karyawan Tertentu (Bisa dibatasi per bulan)
+   * Helper Hapus Data Kehadiran Karyawan Tertentu
    */
   deleteEmployeeAttendance(employeeId, periodMonth = null) {
     const all = this.get(DB_KEYS.ATTENDANCE);
@@ -487,13 +250,6 @@ const DB = {
       return false;
     });
     this.set(DB_KEYS.ATTENDANCE, filtered);
-
-    if (this.isBackendConnected) {
-      const url = periodMonth 
-        ? `${this.apiBaseUrl}/api/attendance/by-employee/${employeeId}?month=${periodMonth}`
-        : `${this.apiBaseUrl}/api/attendance/by-employee/${employeeId}`;
-      fetch(url, { method: 'DELETE' }).catch(console.error);
-    }
     return true;
   },
 
@@ -672,6 +428,6 @@ const DB = {
   }
 };
 
-// Export ke window agar mudah diakses di seluruh file tanpa bundler
+// Export ke window
 window.DB = DB;
 window.DB_KEYS = DB_KEYS;

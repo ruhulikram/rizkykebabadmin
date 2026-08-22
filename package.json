@@ -1,25 +1,18 @@
 {
   "name": "kebab-rizki-admin",
-  "version": "2.0.0",
-  "description": "Sistem Manajemen Keuangan & Operasional Outlet Kebab Rizki dengan SQLite Database & Web Management Panel",
-  "main": "server.js",
+  "version": "2.1.0",
+  "description": "Sistem Manajemen Keuangan & Operasional Outlet Kebab Rizki",
+  "private": true,
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "npx serve ."
   },
   "keywords": [
     "kebab",
     "finance",
     "pos",
-    "sqlite",
-    "database",
-    "admin-panel"
+    "accounting",
+    "salary-slip"
   ],
   "author": "Kebab Rizki",
-  "license": "ISC",
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "sqlite3": "^5.1.7"
-  }
+  "license": "ISC"
 }
