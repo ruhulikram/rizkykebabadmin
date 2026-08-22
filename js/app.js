@@ -14,8 +14,11 @@ const App = {
    * Inisialisasi Aplikasi saat DOM Siap
    */
   init() {
-    // Inisialisasi DB LocalStorage
-    DB.init();
+    // Inisialisasi DB LocalStorage & Backend SQLite
+    DB.init().then(() => {
+      this.renderAll();
+      if (window.lucide) lucide.createIcons();
+    });
 
     // Setup Navigasi Tab
     this.setupNavigation();

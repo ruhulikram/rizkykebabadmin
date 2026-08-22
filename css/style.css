@@ -1520,3 +1520,82 @@ body {
     font-size: 0.8rem;
   }
 }
+
+/* ==========================================================================
+   DATABASE STATUS & STUDIO BADGES
+   ========================================================================== */
+
+.db-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: all var(--trans);
+  cursor: pointer;
+}
+
+.db-status-badge.online {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.db-status-badge.online:hover {
+  background-color: #d1fae5;
+}
+
+.db-status-badge.offline {
+  background-color: #fefce8;
+  color: #854d0e;
+  border-color: #fef08a;
+}
+.db-status-badge.offline:hover {
+  background-color: #fef9c3;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseBadge 2s infinite;
+}
+
+.pulse-dot.offline {
+  background-color: #eab308;
+  box-shadow: 0 0 6px #eab308;
+  animation: none;
+}
+
+@keyframes pulseBadge {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.badge-mini-tag {
+  background-color: #f59e0b;
+  color: #0f172a;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  margin-left: auto;
+}
+
+.db-nav-highlight {
+  position: relative;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.db-nav-highlight:hover {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+

@@ -118,10 +118,15 @@
 
         <!-- Group 3: Pengaturan -->
         <div class="nav-group">
-          <span class="nav-group-title">Sistem</span>
+          <span class="nav-group-title">Sistem & Database</span>
           <a class="nav-item" data-tab="settings">
-            <i data-lucide="database"></i>
+            <i data-lucide="sliders"></i>
             <span>Backup & Profil</span>
+          </a>
+          <a class="nav-item db-nav-highlight" href="panel-database.html" target="_blank" title="Buka Panel Akses Database SQLite di Tab Baru">
+            <i data-lucide="terminal"></i>
+            <span>Panel Database</span>
+            <span class="badge-mini-tag">SQL</span>
           </a>
         </div>
       </div>
@@ -152,6 +157,11 @@
         </div>
 
         <div class="navbar-right">
+          <!-- Database Live Status Indicator Badge -->
+          <a href="panel-database.html" target="_blank" class="db-status-badge offline" id="dbStatusBadge" title="Status koneksi database SQLite. Klik untuk membuka Panel Akses Database.">
+            <span class="pulse-dot offline"></span> <span>Database: <strong>Memeriksa...</strong></span>
+          </a>
+
           <!-- Pill Date & Quick Filter Bar (Reference Style) -->
           <div class="pill-date-bar">
             <span class="date-label-pill" id="currentDateDisplay">01 - 19 Agustus 2026</span>
@@ -974,11 +984,34 @@
             <!-- Backup & Restore Data -->
             <div class="card">
               <div class="card-header">
-                <h2 class="card-title">Cadangkan & Pulihkan Data</h2>
+                <h2 class="card-title">Database & Pencadangan Data</h2>
               </div>
+
+              <!-- SQLite Studio Card -->
+              <div
+                style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155; border-radius: var(--radius-md); padding: 18px; margin-bottom: 16px; color: #fff;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                  <div>
+                    <span style="background: #f59e0b; color: #0f172a; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em;">SQLite 3 Relasional</span>
+                    <h3 style="font-size: 0.95rem; font-weight: 800; color: #fff; margin-top: 6px;">Panel Akses Database & SQLite Studio</h3>
+                  </div>
+                  <i data-lucide="database" style="color: #f59e0b; width: 26px; height: 26px;"></i>
+                </div>
+                <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 14px; line-height: 1.5;">
+                  Aplikasi telah dilengkapi database relasional <code>database/kebab_rizki.db</code>. Gunakan Web Studio untuk melihat seluruh data tabel, mengeksekusi perintah SQL, atau membuka file di DB Browser for SQLite.
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                  <a href="panel-database.html" target="_blank" class="btn btn-primary btn-sm" style="font-weight: 700;">
+                    <i data-lucide="external-link"></i> Buka Panel Akses Database
+                  </a>
+                  <a href="/api/db/export-db" class="btn btn-secondary btn-sm" style="background: #334155; color: #fff; border-color: #475569;">
+                    <i data-lucide="download"></i> Unduh File .db
+                  </a>
+                </div>
+              </div>
+
               <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
-                Seluruh data tersimpan langsung di <b>LocalStorage</b> browser ini. Buat file cadangan secara berkala
-                agar aman.
+                Anda juga dapat mengunduh atau mengimpor file cadangan mandiri dalam format JSON:
               </p>
 
               <!-- Backup Button -->

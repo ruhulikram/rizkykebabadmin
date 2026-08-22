@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Akses Database SQLite - Kebab Rizki</title>
+  <link rel="icon" type="image/svg+xml" href="images/logo-kebab.svg">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #334155;
+      --bg-input: #0b1120;
+      --border-color: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #f59e0b;
+      --accent-hover: #d97706;
+      --accent-light: rgba(245, 158, 11, 0.15);
+      --success: #10b981;
+      --success-light: rgba(16, 185, 129, 0.15);
+      --danger: #ef4444;
+      --danger-light: rgba(239, 68, 68, 0.15);
+      --info: #38bdf8;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navbar */
+    .db-header {
+      background-color: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      font-size: 28px;
+      background: var(--accent-light);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      width: 46px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+    }
+
+    .brand-text h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      background: #0284c7;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .brand-text p {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #0f172a;
+    }
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-card);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+    .btn-secondary:hover {
+      background-color: var(--bg-card-hover);
+      border-color: #475569;
+    }
+
+    .btn-success {
+      background-color: var(--success);
+      color: #fff;
+    }
+    .btn-success:hover {
+      background-color: #059669;
+    }
+
+    .btn-danger {
+      background-color: var(--danger-light);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+    .btn-danger:hover {
+      background-color: var(--danger);
+      color: #fff;
+    }
+
+    /* Container */
+    .db-container {
+      max-width: 1360px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Stat Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .stat-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-main);
+      color: var(--accent);
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-meta {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--success);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* Main Tabs */
+    .db-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .db-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .db-tab-btn:hover {
+      color: var(--text-primary);
+      background-color: rgba(255,255,255,0.05);
+    }
+
+    .db-tab-btn.active {
+      color: #0f172a;
+      background-color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Tab Content Panels */
+    .tab-panel {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .tab-panel.active {
+      display: flex;
+    }
+
+    /* Card Panels */
+    .panel-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .panel-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Table Selector Pills */
+    .table-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .table-pill {
+      background-color: var(--bg-main);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .table-pill:hover {
+      border-color: #64748b;
+      color: #fff;
+    }
+
+    .table-pill.active {
+      background-color: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .pill-count {
+      background-color: rgba(255,255,255,0.1);
+      color: inherit;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    /* Data Table Container */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-main);
+    }
+
+    .db-grid {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    .db-grid th {
+      background-color: #1e293b;
+      color: #94a3b8;
+      font-weight: 600;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .db-grid td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+      color: #e2e8f0;
+      white-space: nowrap;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+    }
+
+    .db-grid tbody tr:hover {
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    /* SQL Console */
+    .sql-editor-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sql-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .preset-btn {
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .sql-textarea {
+      width: 100%;
+      height: 140px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: #f1f5f9;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 14px;
+      resize: vertical;
+      outline: none;
+    }
+
+    .sql-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-light);
+    }
+
+    .sql-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .execution-badge {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    /* Schema Table */
+    .schema-grid {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .schema-grid th, .schema-grid td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      text-align: left;
+    }
+    .schema-grid th {
+      background-color: var(--bg-main);
+      color: var(--text-secondary);
+    }
+
+    .badge-pk {
+      background: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Tools Cards */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .tool-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tool-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tool-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+    .toast.show { display: flex; }
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .db-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .header-actions { width: 100%; justify-content: space-between; }
+      .db-tabs { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navbar Header -->
+  <header class="db-header">
+    <div class="brand-section">
+      <div class="brand-icon">🌯</div>
+      <div class="brand-text">
+        <h1>Panel Akses Database <span class="brand-badge">SQLite 3</span></h1>
+        <p>Kebab Rizki Management Studio & Engine Monitor</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a href="index.html" class="btn btn-secondary">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Buka Kasir / Web App</span>
+      </a>
+      <button class="btn btn-primary" onclick="refreshAllData()">
+        <i data-lucide="refresh-cw"></i>
+        <span>Refresh Status</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="db-container">
+
+    <!-- Live Metric Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon"><i data-lucide="activity"></i></div>
+        <div class="stat-meta">
+          <div class="stat-label">Status Database</div>
+          <div class="stat-value">
+            <span class="stat-badge"><span class="pulse-dot"></span> <span id="dbStatusText">Online</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon"><i data-lucide="hard-drive"></i></div>
+        <div class="stat-meta">
+          <div class="stat-label">Ukuran File DB</div>
+          <div class="stat-value" id="dbFileSize">-</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon"><i data-lucide="table"></i></div>
+        <div class="stat-meta">
+          <div class="stat-label">Tabel Terdaftar</div>
+          <div class="stat-value" id="dbTotalTables">6 Tabel</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon"><i data-lucide="layers"></i></div>
+        <div class="stat-meta">
+          <div class="stat-label">Total Record Data</div>
+          <div class="stat-value" id="dbTotalRecords">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="db-tabs">
+      <button class="db-tab-btn active" onclick="switchTab('explorer')">
+        <i data-lucide="table-2"></i>
+        <span>Penjelajah Tabel (Table Browser)</span>
+      </button>
+      <button class="db-tab-btn" onclick="switchTab('console')">
+        <i data-lucide="terminal"></i>
+        <span>SQL Query Console</span>
+      </button>
+      <button class="db-tab-btn" onclick="switchTab('schema')">
+        <i data-lucide="file-code-2"></i>
+        <span>Struktur Skema (Schema)</span>
+      </button>
+      <button class="db-tab-btn" onclick="switchTab('tools')">
+        <i data-lucide="wrench"></i>
+        <span>Backup, Restore & Tools</span>
+      </button>
+    </div>
+
+    <!-- =========================================================================
+         TAB 1: TABLE EXPLORER
+         ========================================================================= -->
+    <div class="tab-panel active" id="panel-explorer">
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <div class="panel-card-title">
+            <i data-lucide="database"></i>
+            <span>Pilih Tabel Database:</span>
+          </div>
+          <div class="table-pills" id="tablePillsContainer">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <div class="panel-card-header" style="border-top: 1px solid var(--border-color); padding-top: 14px;">
+          <div style="font-size: 13px; color: var(--text-secondary);">
+            Menampilkan data tabel: <strong id="currentTableLabel" style="color: #fff;">income</strong> 
+            (<span id="currentTableCount">0</span> baris)
+          </div>
+          <div>
+            <button class="btn btn-secondary btn-sm" onclick="loadCurrentTable()">
+              <i data-lucide="refresh-cw"></i> Refresh Tabel
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="db-grid" id="dataTableGrid">
+            <thead>
+              <tr id="dataTableHeaderRow">
+                <th>Memuat kolom...</th>
+              </tr>
+            </thead>
+            <tbody id="dataTableBody">
+              <tr>
+                <td style="text-align: center; padding: 24px;">Memuat data dari SQLite...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         TAB 2: SQL QUERY CONSOLE
+         ========================================================================= -->
+    <div class="tab-panel" id="panel-console">
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <div class="panel-card-title">
+            <i data-lucide="terminal"></i>
+            <span>SQL Query Runner</span>
+          </div>
+          <span style="font-size: 12px; color: var(--text-muted);">
+            Mendukung query: SELECT, INSERT, UPDATE, DELETE, GROUP BY, JOIN
+          </span>
+        </div>
+
+        <div class="sql-editor-container">
+          <div style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">
+            Query Cepat Siap Pakai (Klik untuk Memuat):
+          </div>
+          <div class="sql-presets">
+            <button class="preset-btn" onclick="setQuery('SELECT * FROM income ORDER BY date DESC, created_at DESC LIMIT 20;')">
+              📊 20 Penjualan Terakhir
+            </button>
+            <button class="preset-btn" onclick="setQuery('SELECT menu, COUNT(*) as transaksi, SUM(portions) as total_porsi, SUM(amount) as total_omzet FROM income GROUP BY menu ORDER BY total_omzet DESC;')">
+              🌯 Menu Terlaris & Omzet
+            </button>
+            <button class="preset-btn" onclick="setQuery('SELECT payment_method, COUNT(*) as jml_transaksi, SUM(amount) as total_rupiah FROM income GROUP BY payment_method;')">
+              💳 Omzet per Metode Bayar
+            </button>
+            <button class="preset-btn" onclick="setQuery('SELECT category, SUM(amount) as total_belanja, COUNT(*) as jml_nota FROM expenses GROUP BY category ORDER BY total_belanja DESC;')">
+              💸 Belanja per Kategori
+            </button>
+            <button class="preset-btn" onclick="setQuery('SELECT e.name, e.role, e.daily_wage, COUNT(a.id) as hari_hadir FROM employees e LEFT JOIN attendance a ON e.id = a.employee_id AND a.status = \'hadir\' GROUP BY e.id;')">
+              👥 Rekap Kehadiran Karyawan
+            </button>
+            <button class="preset-btn" onclick="setQuery('SELECT e.name, a.date, a.amount, a.type, a.status FROM advances a JOIN employees e ON a.employee_id = e.id WHERE a.status = \'pending\';')">
+              📉 Kasbon Belum Lunas
+            </button>
+          </div>
+
+          <textarea id="sqlInput" class="sql-textarea" placeholder="Tulis perintah SQL di sini (misal: SELECT * FROM income;)">SELECT * FROM income ORDER BY date DESC LIMIT 15;</textarea>
+
+          <div class="sql-actions">
+            <div class="execution-badge" id="executionBadge">Siap mengeksekusi</div>
+            <button class="btn btn-primary" onclick="executeCustomQuery()">
+              <i data-lucide="play"></i>
+              <span>Jalankan Query (Execute)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive" style="margin-top: 10px;">
+          <table class="db-grid" id="sqlResultGrid">
+            <thead>
+              <tr id="sqlResultHeaderRow">
+                <th>Hasil Query</th>
+              </tr>
+            </thead>
+            <tbody id="sqlResultBody">
+              <tr>
+                <td style="text-align: center; color: var(--text-muted); padding: 30px;">
+                  Klik "Jalankan Query" untuk melihat hasil data di sini.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         TAB 3: SCHEMA VIEWER
+         ========================================================================= -->
+    <div class="tab-panel" id="panel-schema">
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <div class="panel-card-title">
+            <i data-lucide="code-2"></i>
+            <span>Struktur Tabel & Relasi SQLite</span>
+          </div>
+        </div>
+        <div id="schemaTablesContainer" style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         TAB 4: TOOLS & BACKUP
+         ========================================================================= -->
+    <div class="tab-panel" id="panel-tools">
+      <div class="tools-grid">
+        
+        <!-- Tool 1: Download .db -->
+        <div class="tool-box">
+          <div class="tool-title">
+            <i data-lucide="download" style="color: var(--accent);"></i>
+            <span>Unduh File Database (.db)</span>
+          </div>
+          <div class="tool-desc">
+            Unduh langsung file database mentah <code>kebab_rizki.db</code> untuk dibuka menggunakan aplikasi desktop seperti <strong>DB Browser for SQLite</strong> atau <strong>DBeaver</strong>.
+          </div>
+          <a href="/api/db/export-db" class="btn btn-primary" style="margin-top: auto;">
+            <i data-lucide="download"></i>
+            <span>Download kebab_rizki.db</span>
+          </a>
+        </div>
+
+        <!-- Tool 2: Backup JSON -->
+        <div class="tool-box">
+          <div class="tool-title">
+            <i data-lucide="file-json" style="color: var(--info);"></i>
+            <span>Backup Full JSON</span>
+          </div>
+          <div class="tool-desc">
+            Ekspor seluruh tabel database ke dalam format berkas JSON terstandarisasi untuk arsip atau transfer ke perangkat lain.
+          </div>
+          <a href="/api/db/backup-json" class="btn btn-secondary" style="margin-top: auto;">
+            <i data-lucide="download"></i>
+            <span>Download Backup JSON</span>
+          </a>
+        </div>
+
+        <!-- Tool 3: Restore JSON -->
+        <div class="tool-box">
+          <div class="tool-title">
+            <i data-lucide="upload" style="color: var(--success);"></i>
+            <span>Restore / Impor Data JSON</span>
+          </div>
+          <div class="tool-desc">
+            Pulihkan data dari file JSON cadangan langsung ke dalam tabel SQLite.
+          </div>
+          <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="handleFileRestore(event)">
+          <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click()" style="margin-top: auto;">
+            <i data-lucide="upload"></i>
+            <span>Pilih File JSON Restore</span>
+          </button>
+        </div>
+
+        <!-- Tool 4: Vacuum Database -->
+        <div class="tool-box">
+          <div class="tool-title">
+            <i data-lucide="zap" style="color: var(--accent);"></i>
+            <span>Optimasi Database (VACUUM)</span>
+          </div>
+          <div class="tool-desc">
+            Jalankan perintah VACUUM untuk membersihkan ruang kosong dan defragmentasi indeks SQLite guna performa kueri optimal.
+          </div>
+          <button class="btn btn-secondary" onclick="vacuumDatabase()" style="margin-top: auto;">
+            <i data-lucide="sparkles"></i>
+            <span>Jalankan VACUUM</span>
+          </button>
+        </div>
+
+        <!-- Tool 5: Reset Bersih -->
+        <div class="tool-box" style="border-color: rgba(239,68,68,0.3);">
+          <div class="tool-title" style="color: #f87171;">
+            <i data-lucide="trash-2" style="color: #f87171;"></i>
+            <span>Reset Bersih Database</span>
+          </div>
+          <div class="tool-desc">
+            Kosongkan seluruh data transaksi penjualan, belanja, dan kehadiran (pengaturan outlet tetap tersimpan).
+          </div>
+          <button class="btn btn-danger" onclick="resetDatabaseClean()" style="margin-top: auto;">
+            <i data-lucide="alert-triangle"></i>
+            <span>Reset Database SQLite</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toastMessage">
+    <i data-lucide="info"></i>
+    <span id="toastText">Pesan pemberitahuan</span>
+  </div>
+
+  <!-- JavaScript Scripting -->
+  <script>
+    let currentSelectedTable = 'income';
+    let databaseTables = [];
+
+    // Switch Tabs
+    function switchTab(tabId) {
+      document.querySelectorAll('.db-tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+
+      const targetBtn = Array.from(document.querySelectorAll('.db-tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+      if (targetBtn) targetBtn.classList.add('active');
+
+      const targetPanel = document.getElementById(`panel-${tabId}`);
+      if (targetPanel) targetPanel.classList.add('active');
+
+      if (tabId === 'explorer') loadCurrentTable();
+      if (tabId === 'schema') renderSchema();
+      lucide.createIcons();
+    }
+
+    // Toast
+    function showToast(text, type = 'info') {
+      const toast = document.getElementById('toastMessage');
+      const toastText = document.getElementById('toastText');
+      toast.className = `toast show ${type}`;
+      toastText.textContent = text;
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3500);
+      lucide.createIcons();
+    }
+
+    // Refresh All Data
+    async function refreshAllData() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById('dbStatusText').textContent = 'Online (' + data.engine + ')';
+          document.getElementById('dbFileSize').textContent = data.fileSizeFormatted || '-';
+          document.getElementById('dbTotalRecords').textContent = (data.totalRecords || 0).toLocaleString('id-ID') + ' Baris';
+
+          await loadTablesList();
+          await loadCurrentTable();
+          showToast('Status database berhasil diperbarui!', 'success');
+        }
+      } catch (err) {
+        document.getElementById('dbStatusText').textContent = 'Offline / Terputus';
+        document.getElementById('dbStatusText').parentElement.style.color = '#ef4444';
+        showToast('Gagal terhubung ke backend server SQLite.', 'error');
+      }
+    }
+
+    // Load Tables List
+    async function loadTablesList() {
+      try {
+        const res = await fetch('/api/db/tables');
+        const json = await res.json();
+        if (json.success) {
+          databaseTables = json.tables;
+          document.getElementById('dbTotalTables').textContent = `${databaseTables.length} Tabel`;
+
+          const container = document.getElementById('tablePillsContainer');
+          container.innerHTML = '';
+
+          databaseTables.forEach(t => {
+            const btn = document.createElement('button');
+            btn.className = `table-pill ${t.name === currentSelectedTable ? 'active' : ''}`;
+            btn.onclick = () => {
+              currentSelectedTable = t.name;
+              document.querySelectorAll('.table-pill').forEach(p => p.classList.remove('active'));
+              btn.classList.add('active');
+              loadCurrentTable();
+            };
+            btn.innerHTML = `<span>${t.name}</span> <span class="pill-count">${t.totalRows}</span>`;
+            container.appendChild(btn);
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Load Current Selected Table Data
+    async function loadCurrentTable() {
+      document.getElementById('currentTableLabel').textContent = currentSelectedTable;
+      const thead = document.getElementById('dataTableHeaderRow');
+      const tbody = document.getElementById('dataTableBody');
+
+      tbody.innerHTML = '<tr><td style="text-align: center; padding: 20px;">Memuat data...</td></tr>';
+
+      try {
+        const res = await fetch(`/api/db/table/${currentSelectedTable}?limit=100`);
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          const { columns, rows, totalRows } = json.data;
+          document.getElementById('currentTableCount').textContent = totalRows;
+
+          // Render Headers
+          thead.innerHTML = columns.map(c => `<th>${c}</th>`).join('');
+
+          // Render Rows
+          if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align: center; color: var(--text-muted); padding: 30px;">Tabel kosong (belum ada data).</td></tr>`;
+          } else {
+            tbody.innerHTML = rows.map(row => {
+              return `<tr>${columns.map(col => {
+                const val = row[col];
+                let displayVal = val;
+                if (val === null || val === undefined) displayVal = '<span style="color: #64748b;">NULL</span>';
+                else if (typeof val === 'object') displayVal = JSON.stringify(val);
+                return `<td>${displayVal}</td>`;
+              }).join('')}</tr>`;
+            }).join('');
+          }
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td style="color: #f87171; padding: 20px;">Gagal memuat tabel: ${err.message}</td></tr>`;
+      }
+    }
+
+    // SQL Preset Setter
+    function setQuery(sql) {
+      document.getElementById('sqlInput').value = sql;
+      executeCustomQuery();
+    }
+
+    // Execute Custom Query
+    async function executeCustomQuery() {
+      const query = document.getElementById('sqlInput').value.trim();
+      if (!query) return showToast('Tulis query SQL terlebih dahulu!', 'error');
+
+      const badge = document.getElementById('executionBadge');
+      const thead = document.getElementById('sqlResultHeaderRow');
+      const tbody = document.getElementById('sqlResultBody');
+
+      badge.textContent = 'Mengeksekusi...';
+      badge.style.color = 'var(--accent)';
+
+      try {
+        const res = await fetch('/api/db/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const json = await res.json();
+
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || 'Terjadi kesalahan eksekusi SQL.');
+        }
+
+        const result = json.result;
+        badge.textContent = `✓ Sukses (${result.executionTimeMs}ms) - ${result.type === 'SELECT' ? result.rowCount + ' baris' : result.message}`;
+        badge.style.color = 'var(--success)';
+
+        if (result.type === 'SELECT') {
+          if (result.columns.length === 0 || result.rows.length === 0) {
+            thead.innerHTML = '<th>Hasil</th>';
+            tbody.innerHTML = '<tr><td style="text-align: center; color: var(--text-muted); padding: 24px;">Query berhasil dieksekusi (0 baris ditemukan).</td></tr>';
+          } else {
+            thead.innerHTML = result.columns.map(c => `<th>${c}</th>`).join('');
+            tbody.innerHTML = result.rows.map(row => {
+              return `<tr>${result.columns.map(col => `<td>${row[col] !== null ? row[col] : '<span style="color:#64748b">NULL</span>'}</td>`).join('')}</tr>`;
+            }).join('');
+          }
+        } else {
+          thead.innerHTML = '<th>Status Eksekusi</th>';
+          tbody.innerHTML = `<tr><td style="color: var(--success); padding: 20px;">✓ ${result.message}</td></tr>`;
+          refreshAllData();
+        }
+      } catch (err) {
+        badge.textContent = `✗ Error: ${err.message}`;
+        badge.style.color = 'var(--danger)';
+        thead.innerHTML = '<th>Pesan Kesalahan SQL</th>';
+        tbody.innerHTML = `<tr><td style="color: #f87171; padding: 20px; font-family: var(--font-mono);">${err.message}</td></tr>`;
+      }
+    }
+
+    // Render Schema
+    function renderSchema() {
+      const container = document.getElementById('schemaTablesContainer');
+      if (databaseTables.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">Memuat skema...</p>';
+        return;
+      }
+
+      container.innerHTML = databaseTables.map(t => {
+        return `
+          <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+            <div style="padding: 12px 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-color); font-weight: 700; color: var(--accent); display: flex; justify-content: space-between;">
+              <span>TABLE: ${t.name}</span>
+              <span style="font-size: 12px; color: var(--text-muted);">${t.totalRows} baris</span>
+            </div>
+            <table class="schema-grid">
+              <thead>
+                <tr>
+                  <th>Kolom</th>
+                  <th>Tipe Data</th>
+                  <th>Primary Key</th>
+                  <th>Not Null</th>
+                  <th>Default Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${t.columns.map(c => `
+                  <tr>
+                    <td style="font-weight: 600; color: #fff;">${c.name}</td>
+                    <td style="font-family: var(--font-mono); color: var(--info);">${c.type}</td>
+                    <td>${c.pk ? '<span class="badge-pk">PRIMARY KEY</span>' : '-'}</td>
+                    <td>${c.notnull ? 'Ya' : 'Tidak'}</td>
+                    <td><code style="color: var(--text-muted);">${c.defaultValue !== null ? c.defaultValue : '-'}</code></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Vacuum
+    async function vacuumDatabase() {
+      if (!confirm('Jalankan optimasi VACUUM pada file SQLite?')) return;
+      try {
+        const res = await fetch('/api/db/vacuum', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          showToast(json.message, 'success');
+          refreshAllData();
+        }
+      } catch (e) {
+        showToast('Gagal menjalankan VACUUM: ' + e.message, 'error');
+      }
+    }
+
+    // Reset Clean
+    async function resetDatabaseClean() {
+      if (!confirm('PERINGATAN: Seluruh data transaksi pemasukan, belanja, dan kehadiran akan dihapus permanen dari SQLite!\n\nLanjutkan?')) return;
+      try {
+        const res = await fetch('/api/db/reset', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          showToast(json.message, 'success');
+          refreshAllData();
+        }
+      } catch (e) {
+        showToast('Gagal reset database: ' + e.message, 'error');
+      }
+    }
+
+    // Handle File Restore
+    async function handleFileRestore(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (!confirm(`Impor data backup JSON "${file.name}" ke dalam SQLite?`)) return;
+
+          const res = await fetch('/api/db/import-json', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parsed)
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast('Restore data ke SQLite berhasil!', 'success');
+            refreshAllData();
+          } else {
+            showToast(json.error || 'Gagal restore data.', 'error');
+          }
+        } catch (err) {
+          showToast('Format berkas JSON tidak valid!', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Auto Init On Load
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      refreshAllData();
+
+      // Keyboard Shortcut Ctrl+Enter to execute SQL
+      document.getElementById('sqlInput').addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          executeCustomQuery();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
